@@ -12,6 +12,8 @@
 
 #ifdef WIN32
 #define STDCALL __stdcall 
+#else
+#define STDCALL
 #endif
 
 #ifndef EXPORT
