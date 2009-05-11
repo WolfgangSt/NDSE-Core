@@ -4,8 +4,9 @@
 #include <stdio.h>
 #include <stdarg.h>
 #include <iostream>
+#include "NDSE.h"
 
-typedef void (__stdcall *log_callback)(char* log);
+typedef void (STDCALL *log_callback)(char* log);
 
 template <typename T>
 class logging

@@ -10,7 +10,10 @@
 #include "CompiledBlock.h"
 #include "jitcode.h"
 
+#ifdef WIN32
 #define STDCALL __stdcall 
+#endif
+
 #ifndef EXPORT
 #define IMPORT __declspec(dllimport)
 #else
