@@ -8,7 +8,8 @@
 #else
 #include <ucontext.h>
 #include <sys/mman.h>
-#include <asm/cachectl.h>
+// #include <asm/cachectl.h>
+#define cacheflush(x,y,z) (0)
 #endif
 
 // signal2 sets a signal handler for sig but only on the calling thread
