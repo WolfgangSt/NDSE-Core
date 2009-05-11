@@ -1,0 +1,56 @@
+LIBRARY
+EXPORTS
+	Init
+	PageSize
+	DebugMax
+	
+	ARM7_GetPage
+	ARM9_GetPage
+	
+	MEM_GetVRAM
+	MEM_GetRegionInfo
+	MEM_FlushPage
+	
+	UTIL_GetCRC16
+	UTIL_LoadFile
+
+	BIOS_ARM7_GetCRC16
+	BIOS_ARM9_GetCRC16
+
+	DEFAULT_Log
+
+	ARM7_Stream
+	ARM7_DisassembleA
+	ARM7_DisassembleT
+	ARM7_Run
+	ARM7_Continue
+	ARM7_GetContext
+	ARM7_Log
+	ARM7_Step
+	ARM7_GetException
+	ARM7_GetDebuggerInfo
+	ARM7_ToggleBreakpointA
+	ARM7_ToggleBreakpointT
+	ARM7_GetBreakpointA
+	ARM7_GetBreakpointT
+
+	ARM9_Stream
+	ARM9_DisassembleA
+	ARM9_DisassembleT
+	ARM9_Run
+	ARM9_Continue
+	ARM9_GetContext
+	ARM9_Log
+	ARM9_Step
+	ARM9_GetException
+	ARM9_GetDebuggerInfo
+	ARM9_ToggleBreakpointA
+	ARM9_ToggleBreakpointT
+	ARM9_GetBreakpointA
+	ARM9_GetBreakpointT
+	
+	ARM9_Callstack
+
+	DEBUGGER_GetSymbol
+
+
