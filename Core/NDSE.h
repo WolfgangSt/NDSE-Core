@@ -17,7 +17,10 @@
 #endif
 
 #ifndef EXPORT
+#ifdef WIN32
 #define IMPORT __declspec(dllimport)
+#else
+#define IMPORT
 #else
 #define IMPORT EXPORT
 #endif
