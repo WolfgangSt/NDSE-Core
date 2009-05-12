@@ -88,9 +88,14 @@ struct region_entry
 	}
 };
 
+#include "PhysMem.h"
 
 
 // a memory mapping table used by the processors to access memory
+
+// error: memory_map<T> needs memory::get_nullblock()
+// memory needs memory_map<T>
+
 template <typename T> class memory_map
 {
 private:

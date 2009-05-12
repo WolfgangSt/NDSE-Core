@@ -3,6 +3,7 @@
 
 #include <stdlib.h> // for _rotl
 #include "Mem.h"
+#include "osdep.h" // for rotr on *nix
 
 struct INST
 {
@@ -1024,16 +1025,6 @@ public:
 	template <typename T>
 	void decode(unsigned int op, unsigned int addr);
 
-	template <>
-	void decode<IS_ARM>(unsigned int op, unsigned int addr)
-	{
-		ctx.op = op;
-		ctx.flags = 0;
-		ctx.addr = addr;
-		
-		decode_condition();
-		decode_instruction();
-	}
 
 ////////////////////////////////////////////////////////////////////////////////
 // THUMB DECODER
@@ -1520,14 +1511,27 @@ public:
 
 
 
-	template <>
-	void decode<IS_THUMB>(unsigned int op, unsigned int addr)
-	{
-		ctx.op = op & 0xFFFF;
-		ctx.flags = 0;
-		ctx.addr = addr;
-		decode_instruction_thumb();
-	}
+	
 };
+
+template <>
+void disassembler::decode<IS_ARM>(unsigned int op, unsigned int addr)
+{
+	ctx.op = op;
+	ctx.flags = 0;
+	ctx.addr = addr;
+	
+	decode_condition();
+	decode_instruction();
+}
+
+template <>
+void disassembler::decode<IS_THUMB>(unsigned int op, unsigned int addr)
+{
+	ctx.op = op & 0xFFFF;
+	ctx.flags = 0;
+	ctx.addr = addr;
+	decode_instruction_thumb();
+}
 
 #endif

@@ -1,8 +1,12 @@
 #include "Util.h"
 #include <fcntl.h>
 #include <sys/stat.h>
+#ifdef WIN32
 #include <share.h>
-#include <io.h>
+#else
+#include <unistd.h>
+#define O_BINARY 0
+#endif
 
 #include "loader_nds.h"
 #include "loader_elf.h"
@@ -58,7 +62,8 @@ bool util::load_file(const char *filename, util::load_result &res)
 {
 	int fd; 
 	bool result = false;
-	if (_sopen_s( &fd, filename, _O_RDONLY | _O_BINARY, _SH_DENYWR, _S_IREAD ) != 0)
+	fd = open( filename, O_RDONLY | O_BINARY, S_IREAD );
+	if (fd <= 0)
 		return false;
 
 	res.arm7_entry = 0;
@@ -73,7 +78,6 @@ bool util::load_file(const char *filename, util::load_result &res)
 		result = false;
 	}
 
-
-	_close( fd );
+	close( fd );
 	return result;
 }

@@ -39,16 +39,16 @@ public:
 	{
 		unsigned long unused;
 		static char retcode = '\xC3';
-		VirtualProtect(&retcode, 1, PAGE_EXECUTE_READWRITE, &unused);
-		code = &retcode;
-		code_size = 1;
-		for (int i = 0; i < REMAPS; i++)
-			remap[i] = code;
+		mprotect(&retcode, 1, PROT_READ | PROT_WRITE | PROT_EXEC);
+		compiled_block<T>::code = &retcode;
+		compiled_block<T>::code_size = 1;
+		for (int i = 0; i < compiled_block<T>::REMAPS; i++)
+			compiled_block<T>::remap[i] = compiled_block<T>::code;
 	}
 	~hle_block()
 	{
-		code = 0;
-		code_size = 0;
+		compiled_block<T>::code = 0;
+		compiled_block<T>::code_size = 0;
 	}
 };
 hle_block<IS_ARM>   arm_hle;
@@ -169,11 +169,17 @@ void STDCALL ARM9_Stream(unsigned long addr, int len, stream_cb::callback cb, vo
 }
 
 
+#ifdef WIN32
+#define THREADVAR __declspec(thread)
+#else
+#define THREADVAR __thread
+#endif
+
 const char* STDCALL ARM9_DisassembleA(unsigned long op, unsigned long addr)
 {
 	disassembler d;
 	d.decode<IS_ARM>(op, addr);
-	static __declspec(thread) char buffer[256];
+	static THREADVAR char buffer[256];
 	d.get_str(buffer);
 	return buffer;
 }
@@ -182,7 +188,7 @@ const char* STDCALL ARM9_DisassembleT(unsigned long op, unsigned long addr)
 {
 	disassembler d;
 	d.decode<IS_THUMB>(op, addr);
-	static __declspec(thread) char buffer[256];
+	static THREADVAR char buffer[256];
 	d.get_str(buffer);
 	return buffer;
 }
@@ -209,6 +215,7 @@ template <typename T> host_context exception_context<T>::context;
 
 
 
+#ifdef WIN32
 bool check_mem_access(void *start, size_t sz)
 {
 	enum { 
@@ -232,7 +239,37 @@ bool check_mem_access(void *start, size_t sz)
 		sz -= r;
 		s  += r;
 	}
+
+	return
+
 }
+
+#else
+#include <setjmp.h>
+
+unsigned char g_ucCalledByTestRoutine = 0;
+jmp_buf g_pBuf;
+void check_mem_access_handler(int nSig)
+{
+     if ( g_ucCalledByTestRoutine ) longjmp ( g_pBuf, 1);
+}
+bool check_mem_access(void *start, size_t sz)
+{
+    char* pc;
+    void(*pPrev)(int sig);
+    g_ucCalledByTestRoutine = 1;
+    if(setjmp(g_pBuf))
+         return true;
+    pPrev = signal(SIGSEGV, check_mem_access_handler);
+    pc = (char*) malloc ( sz );
+    memcpy ( pc, start, sz);
+    free(pc);
+    g_ucCalledByTestRoutine = 0;
+    signal ( SIGSEGV, pPrev );
+    return false;
+}
+
+#endif
 
 // This definitly needs some more reliable way
 // i.) currently having issues when R15 is out of date
@@ -293,7 +330,7 @@ char* resolve_eip()
 #pragma warning(disable: 4311)
 #pragma warning(disable: 4312)
 
-	void *p = (void*)exception_context<T>::context.ctx.uc_mcontext.Ebp;
+	void *p = (void*)CONTEXT_EBP(exception_context<T>::context.ctx.uc_mcontext);
 	void **lastp = 0;
 	exception_context<T>::context.addr_resolved = false;
 
@@ -301,7 +338,7 @@ char* resolve_eip()
 	// or in a HLE that hasnt a stackframe (handle that case somehow)
 	if (p == &processor<T>::context)
 	{
-		char *eip = (char*)exception_context<T>::context.ctx.uc_mcontext.Eip;
+		char *eip = (char*)CONTEXT_EIP(exception_context<T>::context.ctx.uc_mcontext);
 		resolve_armpc_from_eip<T>(eip);
 		return eip;
 	}
@@ -312,11 +349,11 @@ char* resolve_eip()
 	{
 		lastp = (void**)p;
 		if ( !check_mem_access( lastp, 2*sizeof(void*)) )
-			return (char*)exception_context<T>::context.ctx.uc_mcontext.Eip; // ebp has been screwed up
+			return (char*)CONTEXT_EIP(exception_context<T>::context.ctx.uc_mcontext); // ebp has been screwed up
 		p = *lastp;
 	}
 	void *eip = lastp[1];
-	exception_context<T>::context.ctx.uc_mcontext.Eip = (unsigned long)eip;
+	CONTEXT_EIP(exception_context<T>::context.ctx.uc_mcontext) = (unsigned long)eip;
 
 	// finally try to retrieve the ARM address of the crash assuming it happened within
 	// the block R15 points to
@@ -325,104 +362,6 @@ char* resolve_eip()
 #pragma warning(pop)
 }
 
-////////////////////////////////////////////////////////////////////////////////
-// BEGIN signal2 replacement here
-
-template <typename T>
-class thread_context_loader
-{
-private:
-	static CONTEXT ctx;
-	static HANDLE thread;
-	static volatile long sync;
-
-	static unsigned long WINAPI start(void *)
-	{
-		while (InterlockedCompareExchange( &sync, 1, 1 ) != 1)
-			SwitchToThread();
-		SuspendThread( thread );
-		SetThreadContext( thread, &ctx );
-		ResumeThread( thread );
-		CloseHandle( thread );
-		return 0;
-	}
-public:
-	static void set(CONTEXT &context)
-	{
-		ctx = context;
-		DuplicateHandle( GetCurrentProcess(), GetCurrentThread(), GetCurrentProcess(), &thread, 
-			0, FALSE, DUPLICATE_SAME_ACCESS );
-		InterlockedExchange( &sync, 0 );
-		CreateThread( 0, 0, start, 0, 0, 0 );
-		InterlockedExchange( &sync, 1 );
-		for (;;) {}
-	}
-};
-template <typename T> CONTEXT thread_context_loader<T>::ctx;
-template <typename T> HANDLE thread_context_loader<T>::thread;
-template <typename T> volatile long thread_context_loader<T>::sync;
-
-template <typename T>
-struct ContinuationHandler
-{
-	static bool rebranch;
-	static unsigned long rabranchAddr;
-};
-template <typename T> bool ContinuationHandler<T>::rebranch = false;
-template <typename T> unsigned long ContinuationHandler<T>::rabranchAddr;
-
-
-
-
-template <typename T>
-bool do_run(unsigned long addr)
-{
-	ContinuationHandler<T>::rebranch = false;
-	processor<T>::context.regs[15] = addr & (~PAGING::ADDRESS_MASK);
-	memory_block *b = memory_map<T>::addr2page( addr );
-	
-	if (b->flags & (memory_block::PAGE_INVALID | memory_block::PAGE_EXECPROT))
-		return false;
-
-	if (!b->get_jit<T, IS_ARM>())
-		b->recompile<T, IS_ARM>();
-	__try
-	{
-		b->get_jit<T, IS_ARM>()->emulate( addr & PAGING::ADDRESS_MASK, processor<T>::context );
-	}
-	__except ( exception_context<T>::context.ctx.uc_mcontext = 
-			*((GetExceptionInformation())->ContextRecord),
-		EXCEPTION_EXECUTE_HANDLER )
-	{
-		breakpoints_base<T>::trigger( resolve_eip<T>() );
-		return false;
-	}
-	return true;
-}
-
-template <typename T>
-bool do_continue()
-{
-	if (ContinuationHandler<T>::rebranch)
-		return do_run<T>(ContinuationHandler<T>::rabranchAddr);
-
-	__try
-	{
-		thread_context_loader<T>::set( 
-			exception_context<T>::context.ctx.uc_mcontext );
-	}
-	__except ( exception_context<T>::context.ctx.uc_mcontext
-			= *((GetExceptionInformation())->ContextRecord), 
-		EXCEPTION_EXECUTE_HANDLER )
-	{
-		breakpoints_base<T>::trigger( resolve_eip<T>() );
-		return false;
-	}
-	return true;
-}
-
-// END signal2 replacement here
-////////////////////////////////////////////////////////////////////////////////
 
 // rename this to do_init
 template <typename T> struct runner
@@ -491,7 +430,7 @@ template <typename T> struct runner
 		jit_front->uc_stack.ss_flags = 0;
 		
 		makecontext( jit_front,  jit_code, 0 );
-		jit_front->uc_mcontext.Ebp = PtrToUlong(&processor<T>::context);
+		CONTEXT_EBP(jit_front->uc_mcontext) = PtrToUlong(&processor<T>::context);
 
 		valid_state = true;
 	}

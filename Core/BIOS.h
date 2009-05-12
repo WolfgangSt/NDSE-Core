@@ -17,7 +17,7 @@ public:
 	{
 		assert( !(addr & 1) );
 		assert( !(len & 1) );
-		memory_map<T>::process_memory<f_crc16>( addr, len, crc );
+		memory_map<T>::template process_memory<f_crc16>( addr, len, crc );
 		return 0;
 	}
 };

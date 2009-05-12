@@ -41,7 +41,6 @@ typedef struct __ucontext {
 
 
 typedef void (*sigaction_t)(int, siginfo_t *, void *);
-
 void signal2(int sig, sigaction_t handler);
 
 // #include <ucontext.h>

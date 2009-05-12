@@ -1223,9 +1223,10 @@ void compiler::compile_instruction()
 		size_t off = cur - jmpbyte - 1;
 		if(off >= 128)
 		{
-			char buffer[100];
-			sprintf_s(buffer, 100, "Generated code too large: %i", off );
-			MessageBoxA(0,buffer,0,0);
+			//char buffer[100];
+			//sprintf_s(buffer, 100, "Generated code too large: %i", off );
+			//MessageBoxA(0,buffer,0,0);
+			std::cerr << "Generated code too large: " << off << "\n";			
 			assert(0);
 		}
 		s.seekp( jmpbyte );
@@ -1242,7 +1243,7 @@ void compiler::epilogue(char *&mem, size_t &size)
 	// branch to next page
 	s << "\x8B\x4D" << (char)OFFSET(regs[15]); // mov ecx, [ebp+R15]
 	s << "\x81\xE1"; write( s, (unsigned long)(~PAGING::ADDRESS_MASK | 1) ); // and ecx, ~PAGING::ADDR_MASK | 1
-	s << "\x81\xC1"; write( s, PAGING::SIZE);  // add ecx, imm
+	s << "\x81\xC1"; write( s, (unsigned long)PAGING::SIZE);  // add ecx, imm
 	s << "\x89\x4D" << (char)OFFSET(regs[15]); // mov [ebp+r15], ecx
 	JMP(HLE<_ARM9>::compile_and_link_branch_a)
 	//s << "\xFF\xE0";                           // jmp eax

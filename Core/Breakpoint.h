@@ -75,34 +75,47 @@ template<typename T> struct OTHER_MODE {};
 template<> struct OTHER_MODE<IS_ARM> { typedef IS_THUMB T; };
 template<> struct OTHER_MODE<IS_THUMB> { typedef IS_ARM T; };
 
-template<typename T> struct stepper
+template<typename T, typename U> struct stepper
 {
-	template <typename U>
 	static void step_in(unsigned int a1, unsigned int a2, unsigned int s2);
+};
 
-	template <>
-	static void step_in<IS_ARM>(unsigned int a1, unsigned int a2, unsigned int s2)
-	{
-		if (a1 & 1) // modeswitch
-		{
-			// add singlestep bp at destination in thumb mode
-			breakpoints<T,IS_THUMB>::set_onetime(a1 & (~1), 0, 0, 0, 1 );
-			// add singelstep bp behind branch in arm mode 
-			// in case the instruction is not taken
-			breakpoints<T,IS_ARM>::set_onetime(a2, s2, 0, 0, 1 );
-		} else // no modeswitch just install both bp's in ARM mode
-			breakpoints<T,IS_ARM>::set_onetime(a1, 0, a2, s2, 2 );
-	}
-	template <>
-	static void step_in<IS_THUMB>(unsigned int a1, unsigned int a2, unsigned int s2)
-	{
-		breakpoints<T,IS_THUMB>::set_onetime(a1, 0, a2, s2, 2 );
+
+template <typename T, typename U> struct branch_pre
+{
+	static unsigned long get(unsigned long addr); 
+};
+
+template <typename T> struct branch_pre<T, IS_ARM>
+{
+	static unsigned long get(unsigned long addr) { return 0; } 
+};
+
+template <typename T> struct branch_pre<T, IS_THUMB>
+{
+	typedef IS_THUMB U;
+	static unsigned long get(unsigned long addr)
+	{ 
+		// decode previous instruction and return imm if it was a bpre
+		addr -= 2;
+		memory_block *b = memory_map<T>::addr2page(addr);
+		unsigned long op = *(U::T*)(b->mem + (addr & PAGING::ADDRESS_MASK));
+		disassembler d;
+		d.decode<IS_THUMB>(op, addr);
+		const disassembler::context &ctx = d.get_context();
+		if (ctx.instruction == INST::BPRE)
+			return ctx.imm;
+		return 0;
 	}
 };
 
 template <typename T, typename U> class breakpoints: public breakpoints_base<T>
 {
 public:
+	typedef typename breakpoint_defs::break_info break_info;
+	typedef typename breakpoint_defs::break_data break_data;
+	typedef typename breakpoint_defs::stepmode stepmode;
+
 	static bool is_singlestep( break_info *bi )
 	{
 		return (bi->block == &single_step[0]) || (bi->block == &single_step[1]);
@@ -121,8 +134,8 @@ private:
 
 		// need to patch
 		{
-			QMutexLocker g(&dt_lock);
-			dt[bi.pos] = &bi;
+			QMutexLocker g(&breakpoints_base<T>::dt_lock);
+			breakpoints_base<T>::dt[bi.pos] = &bi;
 		}
 		*bi.pos = DEBUG_BREAK;
 		bi.patched = true;
@@ -138,8 +151,8 @@ private:
 		*bi.pos = bi.original_byte;
 		bi.patched = false;
 		{
-			QMutexLocker g(&dt_lock);
-			dt.erase( bi.pos );
+			QMutexLocker g(&breakpoints_base<T>::dt_lock);
+			breakpoints_base<T>::dt.erase( bi.pos );
 		}
 	}
 
@@ -149,8 +162,8 @@ private:
 	{
 		if (bi.patched)
 		{
-			QMutexLocker g(&dt_lock);
-			dt.erase(bi.pos);
+			QMutexLocker g(&breakpoints_base<T>::dt_lock);
+			breakpoints_base<T>::dt.erase(bi.pos);
 		}
 		bi.pos = 0;
 		bi.patched = false;
@@ -172,7 +185,7 @@ private:
 
 	static void add_bp(unsigned long addr, unsigned long subcode)
 	{
-		if (subcode >= MAX_SUBINSTRUCTIONS)
+		if (subcode >= breakpoint_defs::MAX_SUBINSTRUCTIONS)
 			return;
 
 		char *physical = &memory_map<T>::addr2page( addr )->mem[addr & PAGING::ADDRESS_MASK];
@@ -188,37 +201,13 @@ private:
 
 	static bool check_numsub(unsigned long subcode)
 	{
-		if (subcode >= MAX_SUBINSTRUCTIONS)
+		if (subcode >= breakpoint_defs::MAX_SUBINSTRUCTIONS)
 		{
-			/*
-			MessageBox(0,L"The JIT for this instruction contains more instructions than supported by the Debugger\n"
-				L"Please report this error.", 0, 
-				MB_TASKMODAL | MB_ICONERROR);
-			*/
 			std::cerr << "The JIT for this instruction contains more instructions than supported by the Debugger\n"
 				"Please report this error.\n";
 			return false;
 		}
 		return true;
-	}
-
-	template <typename U> static unsigned long get_branch_pre(unsigned long addr);
-	template <> static unsigned long get_branch_pre<IS_ARM>(unsigned long /*addr*/) 
-	{ 
-		return 0; 
-	}
-	template <> static unsigned long get_branch_pre<IS_THUMB>(unsigned long addr) 
-	{ 
-		// decode previous instruction and return imm if it was a bpre
-		addr -= 2;
-		memory_block *b = memory_map<T>::addr2page(addr);
-		unsigned long op = *(U::T*)(b->mem + (addr & PAGING::ADDRESS_MASK));
-		disassembler d;
-		d.decode<IS_THUMB>(op, addr);
-		const disassembler::context &ctx = d.get_context();
-		if (ctx.instruction == INST::BPRE)
-			return ctx.imm;
-		return 0;
 	}
 
 	static bool get_branch_dest(unsigned long addr, unsigned long &dest)
@@ -227,7 +216,7 @@ private:
 
 		//logging<T>::logf("GBA Mode %i", U::INSTRUCTION_SIZE);
 
-		unsigned long op = *(U::T*)(b->mem + (addr & PAGING::ADDRESS_MASK));
+		unsigned long op = *(typename U::T*)(b->mem + (addr & PAGING::ADDRESS_MASK));
 		disassembler d;
 		d.decode<U>(op, addr);
 		const disassembler::context &ctx = d.get_context();
@@ -235,7 +224,7 @@ private:
 		{
 		case INST::B:
 		case INST::BL:
-			dest = ctx.imm + get_branch_pre<U>(addr);
+			dest = ctx.imm + branch_pre<T,U>::get(addr);
 			return true;
 		case INST::BLX:
 		case INST::BX:
@@ -248,7 +237,7 @@ private:
 public:
 	static void step(stepmode mode)
 	{
-		break_info* last = get_last_error();
+		break_info* last = breakpoints_base<T>::get_last_error();
 		if (last)
 		{
 			unsigned long addr = last->block->addr;
@@ -257,26 +246,26 @@ public:
 			unsigned long dest;
 			switch (mode)
 			{
-			case STEP_INTO_EMU:
+			case breakpoint_defs::STEP_INTO_EMU:
 				if (next_sub < last->block->jit_instructions)
 				{
 					if (get_branch_dest(addr, dest))
-						stepper<T>::step_in<U>(  dest, addr, next_sub );
+						stepper<T, U>::step_in(  dest, addr, next_sub );
 					else set_onetime(addr, next_sub, next_addr, 0, 2 );
 					return;
 				}
 				break;
 
-			case STEP_INTO_ARM:
+			case breakpoint_defs::STEP_INTO_ARM:
 				if (get_branch_dest(addr, dest))
 				{
-					stepper<T>::step_in<U>( dest, next_addr, 0 );
+					stepper<T, U>::step_in( dest, next_addr, 0 );
 					// possible mode switch here
 					return;
 				}
 				break;
 
-			case STEP_OVER_EMU:
+			case breakpoint_defs::STEP_OVER_EMU:
 				if (next_sub < last->block->jit_instructions)
 				{
 					set_onetime( addr, next_sub, next_addr, 0, 2 ); // used only first bp before?
@@ -311,7 +300,7 @@ public:
 			return;
 
 		// disable any old outdated break
-		for (int i = 0; i < MAX_SUBINSTRUCTIONS; i++)
+		for (int i = 0; i < breakpoint_defs::MAX_SUBINSTRUCTIONS; i++)
 		{
 			if(single_step[0].jit_line[i].used)
 				toggle_sub( single_step[0].jit_line[i] );
@@ -351,7 +340,7 @@ public:
 
 	static void unset_onetime()
 	{
-		for (int i = 0; i < MAX_SUBINSTRUCTIONS; i++)
+		for (int i = 0; i < breakpoint_defs::MAX_SUBINSTRUCTIONS; i++)
 		{
 			if (single_step[0].jit_line[i].used)
 				toggle_sub( single_step[0].jit_line[i] );
@@ -376,13 +365,13 @@ public:
 		else sz = code->remap[inst] - start;
 				
 		// should lower those if possible ...
-		_DecodedInst instructions[MAX_SUBINSTRUCTIONS_DISTORM];
+		_DecodedInst instructions[breakpoint_defs::MAX_SUBINSTRUCTIONS_DISTORM];
 		unsigned int decoded = 0;
 		if (distorm_decode32( 0, (unsigned char*)start, (int)sz, Decode32Bits, 
-			instructions, MAX_SUBINSTRUCTIONS_DISTORM, &decoded ) == DECRES_SUCCESS)
+			instructions, breakpoint_defs::MAX_SUBINSTRUCTIONS_DISTORM, &decoded ) == DECRES_SUCCESS)
 		{
-			if (decoded  > MAX_SUBINSTRUCTIONS)
-				decoded = MAX_SUBINSTRUCTIONS;
+			if (decoded  > breakpoint_defs::MAX_SUBINSTRUCTIONS)
+				decoded = breakpoint_defs::MAX_SUBINSTRUCTIONS;
 
 			bd->jit_instructions = decoded;
 			for (unsigned int i = 0; i < decoded; i++)
@@ -394,7 +383,7 @@ public:
 					patch_bi(bi);
 				start += instructions[i].size;
 			}
-			for (unsigned int i = decoded; i < MAX_SUBINSTRUCTIONS; i++)
+			for (unsigned int i = decoded; i < breakpoint_defs::MAX_SUBINSTRUCTIONS; i++)
 				bd->jit_line[i].pos = 0;
 		}
 	}
@@ -403,33 +392,35 @@ public:
 	{
 		// disassemble instruction if available and populate code pointers
 		// this allows easier toggling within a jit block
-		for (unsigned int i = 0; i < MAX_SUBINSTRUCTIONS; i++)
+		for (unsigned int i = 0; i < breakpoint_defs::MAX_SUBINSTRUCTIONS; i++)
 			remove_bi( bd->jit_line[i] );
 		disassemble_breakdata(bd);
 	}
 
-	template <typename Functor>
-	static void for_region(char* start, char* end)
+	template <typename Functor> struct for_region
 	{
-		breakmap::iterator it = breaks.lower_bound(start);
-		while ((it != breaks.end()) && (it->first < end))
+		static void f(char* start, char* end)
 		{
-			Functor::callback(it->first, it->second);
-			++it;
+			breakmap::iterator it = breaks.lower_bound(start);
+			while ((it != breaks.end()) && (it->first < end))
+			{
+				Functor::callback(it->first, it->second);
+				++it;
+			}
+
+			// translate single_step address to physical
+
+			unsigned long addr = single_step[0].addr;
+			char *physical = &memory_map<T>::addr2page( addr )->mem[addr & PAGING::ADDRESS_MASK];
+			if ((physical >= start) && (physical < end))
+				Functor::callback( physical, &single_step[0] );
+
+			addr = single_step[1].addr;
+			physical = &memory_map<T>::addr2page( addr )->mem[addr & PAGING::ADDRESS_MASK];
+			if ((physical >= start) && (physical < end))
+				Functor::callback( physical, &single_step[1] );
 		}
-
-		// translate single_step address to physical
-
-		unsigned long addr = single_step[0].addr;
-		char *physical = &memory_map<T>::addr2page( addr )->mem[addr & PAGING::ADDRESS_MASK];
-		if ((physical >= start) && (physical < end))
-			Functor::callback( physical, &single_step[0] );
-
-		addr = single_step[1].addr;
-		physical = &memory_map<T>::addr2page( addr )->mem[addr & PAGING::ADDRESS_MASK];
-		if ((physical >= start) && (physical < end))
-			Functor::callback( physical, &single_step[1] );
-	}
+	};
 
 
 	static const break_data* get(unsigned long addr)
@@ -504,7 +495,7 @@ public:
 		else
 		{
 			toggle_sub( it->second->jit_line[subcode] );
-			for (int i = 0; i < MAX_SUBINSTRUCTIONS; i++)
+			for (int i = 0; i < breakpoint_defs::MAX_SUBINSTRUCTIONS; i++)
 				if (it->second->jit_line[i].used)
 					return;
 			// erase the whole entry
@@ -514,10 +505,40 @@ public:
 	}
 };
 
+
+template <typename T> struct stepper<T, IS_ARM>
+{
+	static void step_in(unsigned int a1, unsigned int a2, unsigned int s2)
+	{
+		if (a1 & 1) // modeswitch
+		{
+			// add singlestep bp at destination in thumb mode
+			breakpoints<T,IS_THUMB>::set_onetime(a1 & (~1), 0, 0, 0, 1 );
+			// add singelstep bp behind branch in arm mode 
+			// in case the instruction is not taken
+			breakpoints<T,IS_ARM>::set_onetime(a2, s2, 0, 0, 1 );
+		} else // no modeswitch just install both bp's in ARM mode
+			breakpoints<T,IS_ARM>::set_onetime(a1, 0, a2, s2, 2 );
+	}
+};
+
+template <typename T>
+struct stepper<T, IS_THUMB>
+{
+	static void step_in(unsigned int a1, unsigned int a2, unsigned int s2)
+	{
+		breakpoints<T,IS_THUMB>::set_onetime(a1, 0, a2, s2, 2 );
+	}
+};
+
+
+
 template <typename T, typename U> 
 	typename breakpoints<T,U>::breakmap breakpoints<T,U>::breaks;
 template <typename T, typename U> 
 	breakpoint_defs::break_data breakpoints<T,U>::single_step[2];
+
+
 
 
 #endif

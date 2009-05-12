@@ -73,3 +73,55 @@ const memory_region_base* memory::regions[memory::NUM_REGIONS] = {
 	&registers1,
 	&cart_header
 };
+
+template <> struct memory::initializer<_ARM7>
+{
+	// gotta figure the correct mappings somehow yet ...
+	static void initialize_mapping()
+	{
+		memory_map<_ARM7>::init_null();
+
+		memory_map<_ARM7>::map_region( &accessory_ram, PAGING::REGION(0x0A000000, 0x0A100000) );
+		memory_map<_ARM7>::map_region( &accessory_rom, PAGING::REGION(0x08000000, 0x0A000000) );
+		memory_map<_ARM7>::map_region( &exp_wram,      PAGING::REGION(0x06000000, 0x07000000) );
+		//memory_map<_ARM7>::map_region( &wcom_wait1,    PAGING::PAGES<0x04808000>::PAGE );
+		//memory_map<_ARM7>::map_region( &wcom_wait0,    PAGING::PAGES<0x04800000>::PAGE );
+		//memory_map<_ARM7>::map_region( &ioregs,        PAGING::PAGES<0x04000000>::PAGE );
+
+		memory_map<_ARM7>::map_region( &arm7_wram,     PAGING::REGION(0x03800000, 0x04000000) );
+		memory_map<_ARM7>::map_region( &arm7_shared,   PAGING::REGION(0x03000000, 0x03800000) );
+			
+			
+			
+		// bogus: this is not how spec says but how emulator does it
+		// the emulated RAM is 0x3E0000
+		// figure somehow how extended RAM behaves.
+		// is it just larger or does it leave gap between 0x023E0000 and 0x2400000
+		// needs testing on actual hardware ...
+		memory_map<_ARM7>::map_region( &ram,           PAGING::REGION(0x02000000, 0x02000000 + ram.SIZE) );
+
+		memory_map<_ARM7>::map_region( &system_rom,    PAGING::REGION(0x00000000, 0x00010400) );
+	}
+};
+
+template <> struct memory::initializer<_ARM9>
+{
+	static void initialize_mapping()
+	{
+		memory_map<_ARM9>::init_null();
+		memory_map<_ARM9>::map_region( &hle_bios,      PAGING::PAGES<0xEFEF0000>::PAGE );
+
+			
+		memory_map<_ARM9>::map_region( &oam_ab,        PAGING::PAGES<0x07000000>::PAGE );
+		memory_map<_ARM9>::map_region( &palettes,      PAGING::PAGES<0x05000000>::PAGE );
+		memory_map<_ARM9>::map_region( &registers1,    PAGING::PAGES<0x04000000>::PAGE );
+			
+			
+		//memory_map<_ARM9>::map_region( &data_tcm,      PAGING::REGION(0x027E0000, 0x02800000) );
+		memory_map<_ARM9>::map_region( &ram,           PAGING::REGION(0x02000000, 0x02000000 + ram.SIZE) );
+		//memory_map<_ARM9>::map_region( &ram,           PAGING::REGION(0x02400000, 0x02400000 + ram.SIZE) );
+		memory_map<_ARM9>::map_region( &cart_header,   PAGING::PAGES<0x27FF000>::PAGE );
+	}
+};
+
+

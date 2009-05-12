@@ -34,19 +34,6 @@ void memory_block::recompile<_ARM7>()
 }
 */
 
-template <typename T, typename U> void memory_block::recompile()
-{
-	recompiles++;
-	if (recompiles == 100)
-		logging<T>::logf("Performance warning: Page %p recompiled 100 times.", this);
-	compiled_block<U>* &b = get_jit<T, U>();
-	if (b)
-		delete b;
-	b = new compiled_block<U>(this);
-	breakpoints<T,U>::for_region< adjust_breakpoints<T,U> >( mem, mem + PAGING::SIZE );
-}
-
-
 template <typename T, typename U>
 struct adjust_breakpoints
 {
@@ -56,6 +43,19 @@ struct adjust_breakpoints
 		breakpoints<T,U>::update_breakdata(bi);
 	}
 };
+
+template <typename T, typename U> void memory_block::recompile()
+{
+	recompiles++;
+	if (recompiles == 100)
+		logging<T>::logf("Performance warning: Page %p recompiled 100 times.", this);
+	compiled_block<U>* &b = get_jit<T, U>();
+	if (b)
+		delete b;
+	b = new compiled_block<U>(this);
+	breakpoints<T,U>::template for_region< adjust_breakpoints<T,U> >::f( mem, mem + PAGING::SIZE );
+}
+
 
 void memory_block::flush()
 {

@@ -1,8 +1,11 @@
 #include "loader_nds.h"
-#include "util.h"
-#include <io.h>
+#include "Util.h"
 #include <stdio.h>
 #include "MemMap.h"
+#include <assert.h>
+
+#include <sys/types.h>
+#include <unistd.h>
 
 struct card_rom_region
 {
@@ -10,7 +13,7 @@ struct card_rom_region
 	unsigned long length;
 };
 
-#include <pshpack1.h>
+//#include <pshpack1.h>
 struct ndsheader_main
 {
 	char game_name[12];
@@ -70,7 +73,7 @@ struct ndsheader
 	ndsheader_sub sub;
 };
 
-#include <poppack.h>
+//#include <poppack.h>
 
 
 struct max_size
@@ -90,9 +93,9 @@ struct max_size
 bool loader_nds::is_valid(int fd)
 {
 	ndsheader hdr;
-	if (_read(fd, &hdr, sizeof(hdr)) != sizeof(hdr))
+	if (read(fd, &hdr, sizeof(hdr)) != sizeof(hdr))
 		return false;
-	_lseek( fd, 0, SEEK_SET );
+	lseek( fd, 0, SEEK_SET );
 
 	max_size sz;
 	sz.sz = 0;
@@ -122,7 +125,7 @@ struct stream_nds
 	{
 		if ((b->flags & memory_block::PAGE_INVALID) == 0)
 		{
-			if (_read( ctx, mem, sz ) != sz) // read
+			if (read( ctx, mem, sz ) != sz) // read
 			{
 				// problem
 			}
@@ -137,17 +140,18 @@ struct stream_nds
 bool loader_nds::load(int fd, util::load_result &res)
 {
 	ndsheader hdr;
-	if (_read(fd, &hdr, sizeof(hdr)) != sizeof(hdr))
+	assert(sizeof(hdr) == 512);
+	if (read(fd, &hdr, sizeof(hdr)) != sizeof(hdr))
 		return false;
 
-	_lseek( fd, hdr.main.main_rom_offset, SEEK_SET );
+	lseek( fd, hdr.main.main_rom_offset, SEEK_SET );
 	memory_map<_ARM9>::process_memory<stream_nds>( 
 		hdr.main.main_ram_address,
 		hdr.main.main_size, 
 		fd );
 	res.arm9_entry = hdr.main.main_entry_address;
 
-	_lseek( fd, hdr.main.sub_rom_offset, SEEK_SET );
+	lseek( fd, hdr.main.sub_rom_offset, SEEK_SET );
 	memory_map<_ARM7>::process_memory<stream_nds>( 
 		hdr.main.sub_ram_address,
 		hdr.main.sub_size, 

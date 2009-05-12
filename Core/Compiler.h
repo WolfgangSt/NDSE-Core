@@ -10,42 +10,19 @@
 #include "CompiledBlock.h"
 
 #define D_DEBUG_BREAK 0xCFU
+#define QUOTE(x) #x
+
 const char DEBUG_BREAK = D_DEBUG_BREAK; // '\xCF'; // iret (for debugging the debugger)
 // const char DEBUG_BREAK = '\xCC'; // int 3
 
 inline void DebugBreak_()
 {
+#ifdef WIN32
 	__asm _emit D_DEBUG_BREAK
+#else
+	asm(".byte " QUOTE(D_DEBUG_BREAK));
+#endif
 }
-
-
-template <typename T>
-struct compiled_block: public compiled_block_base<T>
-{
-protected:
-	compiled_block() { block = 0; }
-public:
-
-	// X86 only! (doesnt matter though since we assemble X86 JIT ;P)
-    template <typename U> void WRITE(char* &p, const T &t)
-	{
-                *reinterpret_cast<U*>(p) = t;
-                p += sizeof(U);
-	}
-
-	void emulate(unsigned long subaddr, emulation_context &ctx);
-
-	compiled_block(memory_block *blk)
-	{
-		block = blk;
-		compiler::compile( *this );
-	}
-
-	~compiled_block()
-	{
-		delete []code;
-	}
-};
 
 
 class compiler
@@ -102,28 +79,13 @@ private:
 	void epilogue(char *&mem, size_t &size);
 	std::ostringstream::pos_type tellp();
 public:
-	
-	
-	
-
-
-
 	template <typename T> void init_mode();
-	template <> void init_mode<IS_ARM>()
-	{
-		INST_BITS = IS_ARM::INSTRUCTION_SIZE_LG2;
-	}
-	template <> void init_mode<IS_THUMB>()
-	{
-		INST_BITS = IS_THUMB::INSTRUCTION_SIZE_LG2;
-	}
-
 	template <typename T>
 	static void compile(compiled_block<T> &cb)
 	{
 		compiler c;
 		disassembler d;
-		T::T* p = (T::T*)cb.block->mem;
+		typename T::T* p = (typename T::T*)cb.block->mem;
 		c.init_mode<T>();
 
 		//logging<T>::logf("compiling block", cb.block);
@@ -166,7 +128,44 @@ public:
 	}
 };
 
+template <> void compiler::init_mode<IS_ARM>()
+{
+	INST_BITS = IS_ARM::INSTRUCTION_SIZE_LG2;
+}
+template <> void compiler::init_mode<IS_THUMB>()
+{
+	INST_BITS = IS_THUMB::INSTRUCTION_SIZE_LG2;
+}
 
+
+
+template <typename T>
+struct compiled_block: public compiled_block_base<T>
+{
+protected:
+	compiled_block() { compiled_block_base<T>::block = 0; }
+public:
+
+	// X86 only! (doesnt matter though since we assemble X86 JIT ;P)
+    template <typename U> void WRITE(char* &p, const T &t)
+	{
+                *reinterpret_cast<U*>(p) = t;
+                p += sizeof(U);
+	}
+
+	void emulate(unsigned long subaddr, emulation_context &ctx);
+
+	compiled_block(memory_block *blk)
+	{
+		compiled_block_base<T>::block = blk;
+		compiler::compile( *this );
+	}
+
+	~compiled_block()
+	{
+		delete []compiled_block_base<T>::code;
+	}
+};
 
 
 

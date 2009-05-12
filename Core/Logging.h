@@ -6,8 +6,6 @@
 #include <iostream>
 #include "NDSE.h"
 
-typedef void (STDCALL *log_callback)(char* log);
-
 template <typename T>
 class logging
 {
@@ -15,31 +13,31 @@ public:
 	
 	static log_callback cb;
 
-	static void log(char *msg)
+	static void log(const char *msg)
 	{
 		if (cb)
 			cb(msg);
 		else std::cout << msg << "\n";
 	}
 
-	static void logf(char *fmt, ...)
+	static void logf(const char *fmt, ...)
 	{
 		char buffer[256];
 		va_list argptr;
 		va_start(argptr, fmt);
-		vsprintf_s( buffer, sizeof(buffer), fmt, argptr ); 
+		vsprintf( buffer, fmt, argptr ); 
 		va_end( argptr );
 		log( buffer );
 	}
 
-	static void logf_assert(bool b, char *fmt, ...)
+	static void logf_assert(bool b, const char *fmt, ...)
 	{
 		if (!b)
 			return;
 		char buffer[256];
 		va_list argptr;
 		va_start(argptr, fmt);
-		vsprintf_s( buffer, sizeof(buffer), fmt, argptr ); 
+		vsprintf( buffer, fmt, argptr ); 
 		va_end( argptr );
 		log( buffer );
 	}

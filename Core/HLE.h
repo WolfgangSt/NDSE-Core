@@ -4,45 +4,57 @@
 #include <map>
 //#include "Compiler.h"
 
+#ifdef WIN32
+#define FASTCALL(x) __fastcall x
+#define FASTCALL_IMPL(x) FASTCALL(x)
+#define NAKEDCALL_IMPL(x) __declspec(naked) __fastcall x
+
+#else
+#define FASTCALL(x) x; __attribute__((fastcall))
+#define FASTCALL_IMPL(x) __attribute__((fastcall)) x
+#define NAKEDCALL_IMPL(x) __attribute__((fastcall)) __attribute__((naked)) x
+#endif
+
 struct emulation_context;
 template <typename T>
 struct HLE
 {
 private:
-	static char* __fastcall compile_and_link_branch_a_real(unsigned long addr);
+	static char* FASTCALL(compile_and_link_branch_a_real(unsigned long addr));
 	static void LZ77UnCompVram();
 public:
+	static void init();
 	static void invoke(unsigned long addr, emulation_context *ctx);
 
 	static void invalid_read(unsigned long addr);
 	static void invalid_write(unsigned long addr);
 	static void invalid_branch(unsigned long addr);
 
-	static void __fastcall store32(unsigned long addr, unsigned long value);
-	static void __fastcall store16(unsigned long addr, unsigned long value);
-	static void __fastcall store8(unsigned long addr, unsigned long value);
-	static void __cdecl store32_array(unsigned long addr, int num, unsigned long *data);
+	static void FASTCALL(store32(unsigned long addr, unsigned long value));
+	static void FASTCALL(store16(unsigned long addr, unsigned long value));
+	static void FASTCALL(store8(unsigned long addr, unsigned long value));
+	static void store32_array(unsigned long addr, int num, unsigned long *data);
 
-	static unsigned long __fastcall load32(unsigned long addr);
-	static unsigned long __fastcall load16u(unsigned long addr);
-	static unsigned long __fastcall load16s(unsigned long addr);
-	static unsigned long __fastcall load8u(unsigned long addr);
-	static void __cdecl load32_array(unsigned long addr, int num, unsigned long *data);
+	static unsigned long FASTCALL(load32(unsigned long addr));
+	static unsigned long FASTCALL(load16u(unsigned long addr));
+	static unsigned long FASTCALL(load16s(unsigned long addr));
+	static unsigned long FASTCALL(load8u(unsigned long addr));
+	static void load32_array(unsigned long addr, int num, unsigned long *data);
 
-	static void __fastcall compile_and_link_branch_a(unsigned long addr);
+	static char compile_and_link_branch_a[7];
 
-	static void __fastcall is_priviledged();
-	static void __fastcall remap_tcm(unsigned long value, unsigned long mode);
-	static void __fastcall pushcallstack(unsigned long addr);
-	static void __fastcall popcallstack(unsigned long addr);
-	static void __fastcall swi(unsigned long idx);
+	static void FASTCALL(is_priviledged());
+	static void FASTCALL(remap_tcm(unsigned long value, unsigned long mode));
+	static void FASTCALL(pushcallstack(unsigned long addr));
+	static void FASTCALL(popcallstack(unsigned long addr));
+	static void FASTCALL(swi(unsigned long idx));
 
 	static void dump_btab();
 };
 
 struct symbols
 {
-	typedef std::map<void*, char*> symmap;
+	typedef std::map<void*, const char*> symmap;
 	static symmap syms;
 	static void init();
 };

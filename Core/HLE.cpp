@@ -38,7 +38,7 @@ void HLE<T>::invalid_branch(unsigned long addr)
 
 // read 32bit bit from variable address
 template <typename T>
-unsigned long __fastcall HLE<T>::load32(unsigned long addr)
+unsigned long FASTCALL_IMPL(HLE<T>::load32(unsigned long addr))
 {
 	memory_block *b = memory_map<T>::addr2page(addr);
 	if (b->flags & (memory_block::PAGE_INVALID | memory_block::PAGE_READPROT))
@@ -47,7 +47,7 @@ unsigned long __fastcall HLE<T>::load32(unsigned long addr)
 }
 
 template <typename T>
-unsigned long __fastcall HLE<T>::load16u(unsigned long addr)
+unsigned long FASTCALL_IMPL(HLE<T>::load16u(unsigned long addr))
 {
 	memory_block *b = memory_map<T>::addr2page(addr);
 	if (b->flags & (memory_block::PAGE_INVALID | memory_block::PAGE_READPROT))
@@ -56,7 +56,7 @@ unsigned long __fastcall HLE<T>::load16u(unsigned long addr)
 }
 
 template <typename T>
-unsigned long __fastcall HLE<T>::load16s(unsigned long addr)
+unsigned long FASTCALL_IMPL(HLE<T>::load16s(unsigned long addr))
 {
 	memory_block *b = memory_map<T>::addr2page(addr);
 	if (b->flags & (memory_block::PAGE_INVALID | memory_block::PAGE_READPROT))
@@ -65,7 +65,7 @@ unsigned long __fastcall HLE<T>::load16s(unsigned long addr)
 }
 
 template <typename T>
-unsigned long __fastcall HLE<T>::load8u(unsigned long addr)
+unsigned long FASTCALL_IMPL(HLE<T>::load8u(unsigned long addr))
 {
 	memory_block *b = memory_map<T>::addr2page(addr);
 	if (b->flags & (memory_block::PAGE_INVALID | memory_block::PAGE_READPROT))
@@ -76,7 +76,7 @@ unsigned long __fastcall HLE<T>::load8u(unsigned long addr)
 
 // write 32bit to variable address
 template <typename T>
-void __fastcall HLE<T>::store32(unsigned long addr, unsigned long value)
+void FASTCALL_IMPL(HLE<T>::store32(unsigned long addr, unsigned long value))
 {
 	memory_block *b = memory_map<T>::addr2page(addr);
 	if (b->flags & (memory_block::PAGE_INVALID | memory_block::PAGE_WRITEPROT))
@@ -86,7 +86,7 @@ void __fastcall HLE<T>::store32(unsigned long addr, unsigned long value)
 }
 
 template <typename T>
-void __fastcall HLE<T>::store16(unsigned long addr, unsigned long value)
+void FASTCALL_IMPL(HLE<T>::store16(unsigned long addr, unsigned long value))
 {
 	memory_block *b = memory_map<T>::addr2page(addr);
 	if (b->flags & (memory_block::PAGE_INVALID | memory_block::PAGE_WRITEPROT))
@@ -96,7 +96,7 @@ void __fastcall HLE<T>::store16(unsigned long addr, unsigned long value)
 }
 
 template <typename T>
-void __fastcall HLE<T>::store8(unsigned long addr, unsigned long value)
+void FASTCALL_IMPL(HLE<T>::store8(unsigned long addr, unsigned long value))
 {
 	memory_block *b = memory_map<T>::addr2page(addr);
 	if (b->flags & (memory_block::PAGE_INVALID | memory_block::PAGE_WRITEPROT))
@@ -106,7 +106,7 @@ void __fastcall HLE<T>::store8(unsigned long addr, unsigned long value)
 }
 
 template <typename T>
-void __cdecl HLE<T>::store32_array(unsigned long addr, int num, unsigned long *data)
+void HLE<T>::store32_array(unsigned long addr, int num, unsigned long *data)
 {	
 	//logging<_ARM9>::logf("storing %i words to %08x", num, addr);
 	const unsigned long *end = data + num;
@@ -137,7 +137,7 @@ void __cdecl HLE<T>::store32_array(unsigned long addr, int num, unsigned long *d
 }
 
 template <typename T>
-void __cdecl HLE<T>::load32_array(unsigned long addr, int num, unsigned long *data)
+void HLE<T>::load32_array(unsigned long addr, int num, unsigned long *data)
 {
 	//logging<_ARM9>::logf("loading %i words from %08x", num, addr);
 	const unsigned long *end = data + num;
@@ -166,7 +166,7 @@ void __cdecl HLE<T>::load32_array(unsigned long addr, int num, unsigned long *da
 
 // execute a jump out of page boundaries
 template <typename T>
-char* __fastcall HLE<T>::compile_and_link_branch_a_real(unsigned long addr)
+char* FASTCALL_IMPL(HLE<T>::compile_and_link_branch_a_real(unsigned long addr))
 {
 	// resolve destination
 	memory_block *b = memory_map<T>::addr2page(addr);
@@ -199,29 +199,21 @@ char* __fastcall HLE<T>::compile_and_link_branch_a_real(unsigned long addr)
 	}
 }
 
-
 // this stub is needed as the original calling code
 // migh get overwritten by the compile call!
 // this is compiler dependant as i dont know any way to do this
 // highlevel yet ...
-
 template <typename T>
-__declspec(naked) void __fastcall HLE<T>::compile_and_link_branch_a(unsigned long)
-{
-	__asm
-	{
-		call compile_and_link_branch_a_real
-		jmp eax
-	}
-}
+char HLE<T>::compile_and_link_branch_a[7];
 
 
-#pragma warning(push)
-#pragma warning(disable:4731)
+// this needs rewrite!
 template <typename T>
 void HLE<T>::invoke(unsigned long addr, emulation_context *ctx)
 {
+	DebugBreak_();
 	ctx->regs[14] = 0xEFEF0000;
+/*	
 	__asm
 	{
 		push ebp
@@ -231,22 +223,45 @@ void HLE<T>::invoke(unsigned long addr, emulation_context *ctx)
 		call eax
 		pop ebp
 	}
+*/
 }
-#pragma warning(pop)
 
 template <typename T>
-void __fastcall HLE<T>::is_priviledged()
+void HLE<T>::init()
+{
+	std::ostringstream s;
+	char *data = HLE<T>::compile_and_link_branch_a;
+	char *func = (char*)&HLE<T>::compile_and_link_branch_a_real;
+	unsigned long d = func - data - 5;
+	s << '\xE8'; s.write((char*)&d, sizeof(d)); // call func
+	s << "\xFF\xE0";                            // jmp eax
+	std::string str = s.str();
+	memcpy( data, str.data(), str.size() );
+}
+
+bool InitHLE()
+{
+	HLE<_ARM7>::init();
+	HLE<_ARM9>::init();
+	return true;
+}
+bool HLE_Initialized = InitHLE();
+
+
+
+template <typename T>
+void FASTCALL_IMPL(HLE<T>::is_priviledged())
 {
 }
 
 template <typename T>
-void __fastcall HLE<T>::pushcallstack(unsigned long addr)
+void FASTCALL_IMPL(HLE<T>::pushcallstack(unsigned long addr))
 {
 	callstack_tracer<T>::push(addr);
 }
 
 template <typename T>
-void __fastcall HLE<T>::popcallstack(unsigned long addr)
+void FASTCALL_IMPL(HLE<T>::popcallstack(unsigned long addr))
 {
 	callstack_tracer<T>::pop(addr);
 }
@@ -364,6 +379,7 @@ public:
 	}
 };
 
+template <>
 void HLE<_ARM9>::LZ77UnCompVram()
 {
 	logging<_ARM9>::logf("SWI 12h [LZ77UnCompVram] called");
@@ -382,7 +398,8 @@ public:
 	}
 };
 
-void __fastcall HLE<_ARM9>::swi(unsigned long idx)
+template <>
+void FASTCALL_IMPL(HLE<_ARM9>::swi(unsigned long idx))
 {
 	switch (idx)
 	{
@@ -406,7 +423,8 @@ ARM9:[0x02800000-0x02BE0000) (RAM image)
 
 */
 
-void __fastcall HLE<_ARM9>::remap_tcm(unsigned long value, unsigned long mode)
+template <>
+void FASTCALL_IMPL(HLE<_ARM9>::remap_tcm(unsigned long value, unsigned long mode))
 {
 	int shift = (value >> 1) & 0x1F;
 
@@ -445,19 +463,19 @@ symbols::symmap symbols::syms;
 
 void symbols::init()
 {
-	syms[&HLE<_ARM9>::load32]                    = "arm9::mem::load32";
-	syms[&HLE<_ARM9>::load16u]                   = "arm9::mem::load16u";
-	syms[&HLE<_ARM9>::load16s]                   = "arm9::mem::load16s";
-	syms[&HLE<_ARM9>::load8u]                    = "arm9::mem::load8u";
-	syms[&HLE<_ARM9>::store32]                   = "arm9::mem::store32";
-	syms[&HLE<_ARM9>::store16]                   = "arm9::mem::store16";
-	syms[&HLE<_ARM9>::store8]                    = "arm9::mem::store8";
-	syms[&HLE<_ARM9>::store32_array]             = "arm9::mem::store32_array";
-	syms[&HLE<_ARM9>::load32_array]              = "arm9::mem::load32_array";
-	syms[&HLE<_ARM9>::compile_and_link_branch_a] = "arm9::arm::branch";
-	syms[&HLE<_ARM9>::is_priviledged]            = "arm9::is_priviledged";
-	syms[&HLE<_ARM9>::remap_tcm]                 = "arm9::TCM";
-	syms[&HLE<_ARM9>::pushcallstack]             = "arm9::dbg::callstack::push";
-	syms[&HLE<_ARM9>::popcallstack]              = "arm9::dbg::callstack::pop";
-	syms[&HLE<_ARM9>::swi]                       = "arm9::swi";
+	syms[(void*)HLE<_ARM9>::load32]                    = "arm9::mem::load32";
+	syms[(void*)HLE<_ARM9>::load16u]                   = "arm9::mem::load16u";
+	syms[(void*)HLE<_ARM9>::load16s]                   = "arm9::mem::load16s";
+	syms[(void*)HLE<_ARM9>::load8u]                    = "arm9::mem::load8u";
+	syms[(void*)HLE<_ARM9>::store32]                   = "arm9::mem::store32";
+	syms[(void*)HLE<_ARM9>::store16]                   = "arm9::mem::store16";
+	syms[(void*)HLE<_ARM9>::store8]                    = "arm9::mem::store8";
+	syms[(void*)HLE<_ARM9>::store32_array]             = "arm9::mem::store32_array";
+	syms[(void*)HLE<_ARM9>::load32_array]              = "arm9::mem::load32_array";
+	syms[(void*)HLE<_ARM9>::compile_and_link_branch_a] = "arm9::arm::branch";
+	syms[(void*)HLE<_ARM9>::is_priviledged]            = "arm9::is_priviledged";
+	syms[(void*)HLE<_ARM9>::remap_tcm]                 = "arm9::TCM";
+	syms[(void*)HLE<_ARM9>::pushcallstack]             = "arm9::dbg::callstack::push";
+	syms[(void*)HLE<_ARM9>::popcallstack]              = "arm9::dbg::callstack::pop";
+	syms[(void*)HLE<_ARM9>::swi]                       = "arm9::swi";
 }

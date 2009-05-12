@@ -17,12 +17,13 @@
 #endif
 
 #ifndef EXPORT
-#ifdef WIN32
-#define IMPORT __declspec(dllimport)
+	#ifdef WIN32
+	#define IMPORT __declspec(dllimport)
+	#else
+	#define IMPORT
+	#endif
 #else
-#define IMPORT
-#else
-#define IMPORT EXPORT
+	#define IMPORT EXPORT
 #endif
 
 struct memory_block;
@@ -30,7 +31,7 @@ struct memory_block;
 extern "C"{
 
 typedef void (STDCALL *stream_callback)(memory_block*, char*, int, void*);
-typedef void (STDCALL *log_callback)(char* log);
+typedef void (STDCALL *log_callback)(const char* log);
 
 IMPORT void STDCALL Init();
 
