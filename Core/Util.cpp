@@ -3,6 +3,9 @@
 #include <sys/stat.h>
 #ifdef WIN32
 #include <share.h>
+#include <io.h>
+#define open _open
+#define close _close
 #else
 #include <unistd.h>
 #define O_BINARY 0

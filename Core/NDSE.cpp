@@ -1,5 +1,6 @@
 // NDSE.cpp : Defines the entry point for the console application.
 //
+#define EXPORT __declspec(dllexport)
 
 #include <iostream>
 #include <fstream>
@@ -25,7 +26,6 @@
 #include "Processor.h"
 #include "io_observe.h"
 
-#define EXPORT __declspec(dllexport)
 #include "NDSE.h"
 #include "osdep.h"
 
@@ -37,7 +37,6 @@ class hle_block: public compiled_block<T>
 public:
 	hle_block()
 	{
-		unsigned long unused;
 		static char retcode = '\xC3';
 		mprotect(&retcode, 1, PROT_READ | PROT_WRITE | PROT_EXEC);
 		compiled_block<T>::code = &retcode;
@@ -239,9 +238,6 @@ bool check_mem_access(void *start, size_t sz)
 		sz -= r;
 		s  += r;
 	}
-
-	return
-
 }
 
 #else

@@ -1514,24 +1514,4 @@ public:
 	
 };
 
-template <>
-void disassembler::decode<IS_ARM>(unsigned int op, unsigned int addr)
-{
-	ctx.op = op;
-	ctx.flags = 0;
-	ctx.addr = addr;
-	
-	decode_condition();
-	decode_instruction();
-}
-
-template <>
-void disassembler::decode<IS_THUMB>(unsigned int op, unsigned int addr)
-{
-	ctx.op = op & 0xFFFF;
-	ctx.flags = 0;
-	ctx.addr = addr;
-	decode_instruction_thumb();
-}
-
 #endif

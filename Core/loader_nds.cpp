@@ -5,7 +5,16 @@
 #include <assert.h>
 
 #include <sys/types.h>
+
+#ifdef WIN32
+#include <io.h>
+#define read _read
+#define lseek _lseek
+#define open _open
+#define close _close
+#else
 #include <unistd.h>
+#endif
 
 struct card_rom_region
 {

@@ -128,15 +128,6 @@ public:
 	}
 };
 
-template <> void compiler::init_mode<IS_ARM>()
-{
-	INST_BITS = IS_ARM::INSTRUCTION_SIZE_LG2;
-}
-template <> void compiler::init_mode<IS_THUMB>()
-{
-	INST_BITS = IS_THUMB::INSTRUCTION_SIZE_LG2;
-}
-
 
 
 template <typename T>

@@ -124,4 +124,10 @@ template <> struct memory::initializer<_ARM9>
 	}
 };
 
+void physmem_instanciate_initializers()
+{
+	memory::initializer<_ARM7>::initialize_mapping();
+	memory::initializer<_ARM9>::initialize_mapping();
+}
+
 

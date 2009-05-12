@@ -209,7 +209,7 @@ char HLE<T>::compile_and_link_branch_a[7];
 
 // this needs rewrite!
 template <typename T>
-void HLE<T>::invoke(unsigned long addr, emulation_context *ctx)
+void HLE<T>::invoke(unsigned long /*addr*/, emulation_context *ctx)
 {
 	DebugBreak_();
 	ctx->regs[14] = 0xEFEF0000;

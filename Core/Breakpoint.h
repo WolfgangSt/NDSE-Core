@@ -88,7 +88,7 @@ template <typename T, typename U> struct branch_pre
 
 template <typename T> struct branch_pre<T, IS_ARM>
 {
-	static unsigned long get(unsigned long addr) { return 0; } 
+	static unsigned long get(unsigned long /*addr*/) { return 0; } 
 };
 
 template <typename T> struct branch_pre<T, IS_THUMB>
