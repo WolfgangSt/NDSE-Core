@@ -1,4 +1,5 @@
 #include "PhysMem.h"
+#include "MemMap.h"
 
 #define RGB(r,g,b) (r | (g << 8) | (b << 16))
 

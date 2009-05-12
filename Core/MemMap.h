@@ -2,7 +2,7 @@
 #define _MEMMAP_H_
 
 #include "Mem.h"
-#include "MemRegionBase.h"
+#include "MemRegion.h"
 #include "Logging.h"
 #include <assert.h>
 #include <list>
@@ -13,27 +13,6 @@
 
 #include "Compiler.h" // for DebugBreak()_
 
-typedef std::pair<unsigned long, unsigned long> _region;
-
-
-
-// a physical region containing several physical pages
-template <typename size_type > struct memory_region: public memory_region_base
-{
-	enum { SIZE = size_type::SIZE };
-	enum { PAGES = PAGING::PAGES< SIZE >::SIZE };
-	memory_block blocks[PAGES];
-	memory_region( const char *name, unsigned long color, unsigned long priority )
-	{
-		this->name = name;
-		this->color = color;
-		this->pages = PAGES;
-		this->priority = priority;
-		start = &blocks[0];
-		end = &blocks[PAGES];
-		
-	};
-};
 
 // information for a mapped interval
 // accumulates all overlapping memory_regions for its interval

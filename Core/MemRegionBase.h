@@ -2,6 +2,7 @@
 #define _MEMREGIONBASE_H_
 
 #include <cstring> // for size_t
+#include "Mem.h"
 
 // this holds debug informations for a physical memory region
 // dont never ever use those inside emulation for sake of performance

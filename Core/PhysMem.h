@@ -1,7 +1,7 @@
 #ifndef _PHYSMEM_H_
 #define _PHYSMEM_H_
 
-#include "MemMap.h"
+#include "MemRegion.h"
 
 // physical memory
 struct memory 

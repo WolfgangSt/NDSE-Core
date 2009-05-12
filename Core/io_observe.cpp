@@ -1,9 +1,11 @@
 #include "io_observe.h"
+#include "Logging.h"
+#include "MemMap.h"
 
 // move this to DMA threads (= parallelize)
 // alternativly use memcpy's if instant DMA is wanted
 
-io_observer::reactor_page io_observer::reactor_data[memory::registers1.PAGES];
+io_observer::reactor_page io_observer::reactor_data[memory::REGISTERS1::PAGES];
 
 unsigned long *reg_at(unsigned long offset)
 {
@@ -17,6 +19,8 @@ void start_dma3()
 	unsigned long *_src  = reg_at(0xD4);
 	unsigned long *_dst  = reg_at(0xD8);
 	unsigned long *_ctrl = reg_at(0xDC);
+	unsigned long subaddr_src;
+	unsigned long subaddr_dst;
 
 	// bruteforce method
 	logging<_ARM9>::logf("DMA started [%08X => %08X]", *_src, *_dst);
@@ -47,8 +51,8 @@ void start_dma3()
 			goto next;
 		}
 
-		unsigned long subaddr_src = src & PAGING::ADDRESS_MASK;
-		unsigned long subaddr_dst = dst & PAGING::ADDRESS_MASK;
+		subaddr_src = src & PAGING::ADDRESS_MASK;
+		subaddr_dst = dst & PAGING::ADDRESS_MASK;
 		
 
 		if (ctrl & (1 << 26))
@@ -307,7 +311,7 @@ void io_observer::process()
 			if (p[j] == bmem[j])
 				continue;
 
-			char *name = "<unknown>";
+			const char *name = "<unknown>";
 			unsigned long addr = addr_base + j * sizeof(unsigned long);
 			switch (addr)
 			{
