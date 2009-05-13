@@ -1,6 +1,9 @@
 // NDSE.cpp : Defines the entry point for the console application.
 //
+
+#ifdef WIN32
 #define EXPORT __declspec(dllexport)
+#endif
 
 #include <iostream>
 #include <fstream>

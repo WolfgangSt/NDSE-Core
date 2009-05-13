@@ -69,5 +69,4 @@ struct memory
 };
 
 
-
 #endif

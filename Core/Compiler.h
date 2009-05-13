@@ -9,18 +9,21 @@
 #include "HLE.h"
 #include "CompiledBlock.h"
 
-#define D_DEBUG_BREAK 0xCFU
-#define QUOTE(x) #x
+#define STRINGIFY(x) #x
+#define TOSTRING(x)  STRINGIFY(x)
+#define CONCAT(a,b) a ## b
 
-const char DEBUG_BREAK = D_DEBUG_BREAK; // '\xCF'; // iret (for debugging the debugger)
-// const char DEBUG_BREAK = '\xCC'; // int 3
+#define D_DEBUG_BREAK 0xCF
+#define D_DEBUG_BREAKU 0xCFU
 
+
+const char DEBUG_BREAK = D_DEBUG_BREAKU; // '\xCF'; // iret (for debugging the debugger)
 inline void DebugBreak_()
 {
 #ifdef WIN32
-	__asm _emit D_DEBUG_BREAK
+	__asm _emit D_DEBUG_BREAKU
 #else
-	asm(".byte " QUOTE(D_DEBUG_BREAK));
+	asm(".byte " TOSTRING(D_DEBUG_BREAK) );
 #endif
 }
 

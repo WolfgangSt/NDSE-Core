@@ -6,7 +6,17 @@
 #ifdef WIN32
 #include "signal2/winsig.h"
 #define CONTEXT_EBP(x) x.Ebp
+#define CONTEXT_ESP(x) x.Esp
 #define CONTEXT_EIP(x) x.Eip
+#define CONTEXT_EAX(x) x.Eax
+#define CONTEXT_EBX(x) x.Ebx
+#define CONTEXT_ECX(x) x.Ecx
+#define CONTEXT_EDX(x) x.Edx
+#define CONTEXT_EDI(x) x.Edi
+#define CONTEXT_ESI(x) x.Esi
+#define CONTEXT_EFLAGS(x) x.EFlags
+
+
 #else
 #include "signal2/nixsig.h"
 #include <ucontext.h>
@@ -23,7 +33,16 @@
 #define PtrToUlong(x) ((unsigned long)x)
 
 #define CONTEXT_EBP(x) x.gregs[REG_EBP]
+#define CONTEXT_ESP(x) x.gregs[REG_ESP]
 #define CONTEXT_EIP(x) x.gregs[REG_EIP]
+#define CONTEXT_EAX(x) x.gregs[REG_EAX]
+#define CONTEXT_EBX(x) x.gregs[REG_EBX]
+#define CONTEXT_ECX(x) x.gregs[REG_ECX]
+#define CONTEXT_EDX(x) x.gregs[REG_EDX]
+#define CONTEXT_EDI(x) x.gregs[REG_EDI]
+#define CONTEXT_ESI(x) x.gregs[REG_ESI]
+#define CONTEXT_EFLAGS(x) x.gregs[REG_EFL]
+
 
 #endif
 
