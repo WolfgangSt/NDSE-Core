@@ -40,6 +40,7 @@ Debug/libNDSE.so: $(OBJS)
 	$(CC) -shared -Wl,-soname=libNDSE.so $(LDFLAGS) -o $@ $(OBJS)
 
 clean:
+	-rm Debug/signal2/*.o
 	-rm Debug/*.o
 
 test:
