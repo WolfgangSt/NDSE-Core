@@ -10,7 +10,7 @@ LIBS = -lQtCore
 LIBDIRS = -L$(QT_LIB)
 LDFLAGS = $(LIBDIRS) $(LIBS)
 
-SRCS=test.cpp Breakpoint.cpp Compiler.cpp Disassembler.cpp HLE.cpp \
+SRCS=Breakpoint.cpp Compiler.cpp Disassembler.cpp HLE.cpp \
  	Interrupt.cpp io_observe.cpp loader_elf.cpp loader_nds.cpp \
  	Mem.cpp NDSE.cpp PhysMem.cpp Util.cpp \
 	signal2/nixsig.cpp
