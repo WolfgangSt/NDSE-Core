@@ -39,14 +39,4 @@ int cacheflush(char *addr, int nbytes, int cache);
 ////////////////////////////////////////////////////////////////////////////////
 // New Platform dependant API
 
-class Fiber
-{
-public:
-	typedef void (fiber_cb)(Fiber *f);
-	
-	
-	virtual void do_continue() = 0;
-	// access to the context is only valid while not in running state
-	ucontext_t context; 
-	static Fiber* create(size_t stacksize, fiber_cb cb);
-};
+

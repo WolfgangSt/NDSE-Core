@@ -1,66 +1,82 @@
 #include "nixsig.h"
 #include <signal.h>
-#include <map>
 #include <QThread>
-#include <string.h>
-#include <iostream>
+#include <QSemaphore>
+#include "../osdep.h"
 
-struct siglist
+class NixFiber: public Fiber, public QThread
 {
-	sigaction_t sig[NSIG];
-	siglist()
+private:
+	fiber_cb *cb;
+	static __thread NixFiber* instance;
+	QSemaphore cont;
+
+	static void handler(int sig, siginfo_t *info, void *ctx)
 	{
-		memset(sig, 0, sizeof(sig));
+		ucontext_t* uctx = (ucontext_t*)ctx;
+		instance->handler2(sig, info, uctx);
+		setcontext(uctx); // continue execution at (modified) ctx
+
 	}
-};
 
-struct original_action
-{
-	bool override;
-	struct sigaction original;
-	original_action()
+	void handler2(int sig, siginfo_t *info, ucontext_t *ctx)
 	{
-		override = false;
+		context = *ctx;
+		do_callback();
+		*ctx = context;
 	}
-};
 
-typedef std::map<Qt::HANDLE, siglist> SigMap;
-static SigMap sigs;
-static original_action original[NSIG];
-
-
-static Qt::HANDLE current_thread()
-{
-	return QThread::currentThreadId(); 
-}
-
-static void global_handler(int sig, siginfo_t *info, void *ctx)
-{
-	SigMap::const_iterator it = sigs.find(current_thread());
-	if (it != sigs.end())
+	void do_callback()
 	{
-		// do the callback if specified
-		sigaction_t cb = it->second.sig[sig];
-		if (cb)
-			return cb(sig, info, ctx);
+		cb(this);
+		cont.acquire();
 	}
-	// invoke the original handler
-	original[sig].original
-}
 
-void signal2(int sig, sigaction_t handler)
-{
-	sigs[current_thread()].sig[sig] = handler;
-	original_action &oa = original[sig];
-	if (!oa.override)
+	void handle(int sig)
 	{
-		oa.override = true;
 		struct sigaction sa;
-		sa.sa_sigaction = global_handler;
+		struct sigaction oa;
+		sa.sa_sigaction = handler;
 		sa.sa_flags = SA_SIGINFO;
 		sigemptyset(&sa.sa_mask);
 		sigaddset(&sa.sa_mask, sig);
-		sigaction( sig, &sa, &oa.original );
+		sigaction( sig, &sa, &oa );
 	}
+
+	void run()
+	{
+		// entry point for the thread
+		instance = this;
+		handle(SIGSEGV);
+		handle(SIGINT);
+		handle(SIGILL);	
+		handle(SIGTSTP);	
+		raise(SIGSEGV);
+		for (;;)
+			do_callback();
+	}
+
+public:
+	NixFiber(size_t stacksize, fiber_cb cb) : cb(cb)
+	{
+		setStackSize(stacksize);
+		start(LowPriority);
+	}
+
+	void do_continue()
+	{
+		cont.release();
+	}
+};
+
+__thread NixFiber* NixFiber::instance;
+
+
+Fiber* Fiber::create(size_t stacksize, fiber_cb cb)
+{
+	return new NixFiber(stacksize, cb);
 }
+
+
+
 
