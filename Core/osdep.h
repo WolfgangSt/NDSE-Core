@@ -1,20 +1,20 @@
 #ifndef _SIGNAL2_H_
 #define _SIGNAL2_H_
 
-//
+// TODO: cleanup context store for less copy overheads
 
 #ifdef WIN32
 #include "signal2/winsig.h"
-#define CONTEXT_EBP(x) x.Ebp
-#define CONTEXT_ESP(x) x.Esp
-#define CONTEXT_EIP(x) x.Eip
-#define CONTEXT_EAX(x) x.Eax
-#define CONTEXT_EBX(x) x.Ebx
-#define CONTEXT_ECX(x) x.Ecx
-#define CONTEXT_EDX(x) x.Edx
-#define CONTEXT_EDI(x) x.Edi
-#define CONTEXT_ESI(x) x.Esi
-#define CONTEXT_EFLAGS(x) x.EFlags
+#define CONTEXT_EBP(x) x.ctx.Ebp
+#define CONTEXT_ESP(x) x.ctx.Esp
+#define CONTEXT_EIP(x) x.ctx.Eip
+#define CONTEXT_EAX(x) x.ctx.Eax
+#define CONTEXT_EBX(x) x.ctx.Ebx
+#define CONTEXT_ECX(x) x.ctx.Ecx
+#define CONTEXT_EDX(x) x.ctx.Edx
+#define CONTEXT_EDI(x) x.ctx.Edi
+#define CONTEXT_ESI(x) x.ctx.Esi
+#define CONTEXT_EFLAGS(x) x.ctx.EFlags
 
 
 #else

@@ -366,11 +366,16 @@ char* resolve_eip()
 template <typename T> struct runner
 {
 	enum { STACK_SIZE = 4096*64 }; // 64K reserved for JIT + HLE funcs
+	static Fiber *fiber;
+	static Fiber::fiber_cb *cb;
+	typedef void (*jit_function)();
+
+	/*
 	static ucontext_t jit_ctx1, jit_ctx2, outer_ctx;
 	static ucontext_t *jit_front;
 	static ucontext_t *jit_back;
 	static bool valid_state;
-	typedef void (*jit_function)();
+	
 
 	static void jit_catch(int, siginfo_t *, void *pctx)
 	{
@@ -385,12 +390,28 @@ template <typename T> struct runner
 	{
 		if (!valid_state)
 			return false;
+
+		// if there still is a breakpoint at the current location
+		// unpatch it single step in host using TF
+		// and then repatch the BP finally continue execution
+		breakpoint_defs::break_info *bi =
+			breakpoints_base<T>::resolve( (char*)UlongToPtr(CONTEXT_EIP(jit_front->uc_mcontext)) );
+		if (bi && bi->patched)
+		{
+			char patchbyte = *bi->pos;
+			*bi->pos = bi->original_byte;
+			CONTEXT_EFLAGS(jit_front->uc_mcontext) |= (1 << 8); // set trap flag
+			swapcontext( &outer_ctx, jit_front );
+			std::cout << "TRIGGER\n";
+			*bi->pos = patchbyte;
+		}
+
 		swapcontext( &outer_ctx, jit_front );
 		ucontext_t *tmp = jit_front;
 		jit_front = jit_back;
 		jit_back = tmp;
 		return false;
-	}
+	}*/
 
 	template <typename U>
 	static jit_function get_entry(unsigned long addr)
@@ -411,6 +432,7 @@ template <typename T> struct runner
 		return (jit_function)start;
 	}
 
+	/*
 	static void jit_rebranch(unsigned long addr)
 	{
 		static char stack[STACK_SIZE];
@@ -442,33 +464,71 @@ template <typename T> struct runner
 		getcontext( &outer_ctx );
 		getcontext( &jit_ctx1 );
 		getcontext( &jit_ctx2 );
+	}*/
+
+	static bool jit_continue()
+	{
+		fiber->do_continue();
+		return true;
 	}
+
+	static void jit_rebranch(unsigned long addr)
+	{
+		// resolve new entrypoint
+		jit_function jit_code;
+		if (addr & 1)
+			jit_code = get_entry<IS_THUMB>(addr);
+		else
+			jit_code = get_entry<IS_ARM>(addr);
+		if (!jit_code)
+			return;
+
+		// set EIP and R15 according to addr
+		processor<T>::context.regs[15] = addr;
+		CONTEXT_EIP(fiber->context.uc_mcontext) = PtrToUlong(jit_code);
+		CONTEXT_EBP(fiber->context.uc_mcontext) = PtrToUlong(&processor<T>::context);
+	}
+
+	static void internal_cb(Fiber *f)
+	{
+		static bool initialized = false;
+		exception_context<T>::context.ctx = f->context;
+		if (initialized)
+			breakpoints_base<T>::trigger( resolve_eip<T>() );
+		else initialized = true;
+		cb(f);
+	}
+
+	static void jit_init(Fiber::fiber_cb c)
+	{
+		cb = c;
+		fiber = Fiber::create( STACK_SIZE, internal_cb);
+	}
+
 };
 
+/*
 template <typename T> ucontext_t runner<T>::jit_ctx1;
 template <typename T> ucontext_t runner<T>::jit_ctx2;
 template <typename T> ucontext_t runner<T>::outer_ctx;
 template <typename T> ucontext_t* runner<T>::jit_front = &runner<T>::jit_ctx1;
 template <typename T> ucontext_t* runner<T>::jit_back = &runner<T>::jit_ctx2;
 template <typename T> bool runner<T>::valid_state = false;
+*/
+
+template <typename T> Fiber* runner<T>::fiber;
+template <typename T> Fiber::fiber_cb* runner<T>::cb;
 
 
 
-
-bool STDCALL ARM9_Run(unsigned long addr)
+void STDCALL ARM9_Init(Fiber::fiber_cb cb)
 {
-	runner<_ARM9>::jit_init();
-	runner<_ARM9>::jit_rebranch(addr);
-	return runner<_ARM9>::jit_continue();
-	//return do_run<_ARM9>(addr);
+	runner<_ARM9>::jit_init(cb);
 }
 
-bool STDCALL ARM7_Run(unsigned long addr)
+void STDCALL ARM7_Init(Fiber::fiber_cb cb)
 {
-	runner<_ARM7>::jit_init();
-	runner<_ARM7>::jit_rebranch(addr);
-	return runner<_ARM7>::jit_continue();
-	//return do_run<_ARM7>(addr);
+	runner<_ARM7>::jit_init(cb);
 }
 
 emulation_context* ARM9_GetContext()
@@ -612,16 +672,12 @@ void STDCALL ARM7_GetJITT(unsigned long addr, jit_code *code)
 void STDCALL ARM7_SetPC(unsigned long addr)
 {
 	return runner<_ARM7>::jit_rebranch(addr);
-	//ContinuationHandler<_ARM7>::rabranchAddr = addr;
-	//ContinuationHandler<_ARM7>::rebranch = true;
 }
 
 
 void STDCALL ARM9_SetPC(unsigned long addr)
 {
 	return runner<_ARM9>::jit_rebranch(addr);
-	//ContinuationHandler<_ARM9>::rabranchAddr = addr;
-	//ContinuationHandler<_ARM9>::rebranch = true;
 }
 
 

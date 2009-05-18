@@ -22,7 +22,7 @@ EXPORTS
 	ARM7_Stream
 	ARM7_DisassembleA
 	ARM7_DisassembleT
-	ARM7_Run
+	ARM7_Init
 	ARM7_Continue
 	ARM7_GetContext
 	ARM7_Log
@@ -37,7 +37,7 @@ EXPORTS
 	ARM9_Stream
 	ARM9_DisassembleA
 	ARM9_DisassembleT
-	ARM9_Run
+	ARM9_Init
 	ARM9_Continue
 	ARM9_GetContext
 	ARM9_Log
