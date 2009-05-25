@@ -368,50 +368,10 @@ template <typename T> struct runner
 	enum { STACK_SIZE = 4096*64 }; // 64K reserved for JIT + HLE funcs
 	static Fiber *fiber;
 	static Fiber::fiber_cb *cb;
+	static breakpoint_defs::break_info *repatch;
 	typedef void (*jit_function)();
 
-	/*
-	static ucontext_t jit_ctx1, jit_ctx2, outer_ctx;
-	static ucontext_t *jit_front;
-	static ucontext_t *jit_back;
-	static bool valid_state;
-	
 
-	static void jit_catch(int, siginfo_t *, void *pctx)
-	{
-		ucontext_t* ctx = (ucontext_t*)pctx;
-		*jit_back = *ctx;
-		exception_context<T>::context.ctx = *ctx;
-		breakpoints_base<T>::trigger( resolve_eip<T>() );
-		setcontext( &outer_ctx );
-	}
-
-	static bool jit_continue()
-	{
-		if (!valid_state)
-			return false;
-
-		// if there still is a breakpoint at the current location
-		// unpatch it single step in host using TF
-		// and then repatch the BP finally continue execution
-		breakpoint_defs::break_info *bi =
-			breakpoints_base<T>::resolve( (char*)UlongToPtr(CONTEXT_EIP(jit_front->uc_mcontext)) );
-		if (bi && bi->patched)
-		{
-			char patchbyte = *bi->pos;
-			*bi->pos = bi->original_byte;
-			CONTEXT_EFLAGS(jit_front->uc_mcontext) |= (1 << 8); // set trap flag
-			swapcontext( &outer_ctx, jit_front );
-			std::cout << "TRIGGER\n";
-			*bi->pos = patchbyte;
-		}
-
-		swapcontext( &outer_ctx, jit_front );
-		ucontext_t *tmp = jit_front;
-		jit_front = jit_back;
-		jit_back = tmp;
-		return false;
-	}*/
 
 	template <typename U>
 	static jit_function get_entry(unsigned long addr)
@@ -432,42 +392,25 @@ template <typename T> struct runner
 		return (jit_function)start;
 	}
 
-	/*
-	static void jit_rebranch(unsigned long addr)
-	{
-		static char stack[STACK_SIZE];
-
-		valid_state = false;
-		jit_function jit_code;
-		if (addr & 1)
-			jit_code = get_entry<IS_THUMB>(addr);
-		else
-			jit_code = get_entry<IS_ARM>(addr);
-		if (!jit_code)
-			return;
-
-		jit_front->uc_stack.ss_size  = STACK_SIZE; 
-		jit_front->uc_stack.ss_sp    = stack;
-		jit_front->uc_stack.ss_flags = 0;
-		
-		makecontext( jit_front,  jit_code, 0 );
-		CONTEXT_EBP(jit_front->uc_mcontext) = PtrToUlong(&processor<T>::context);
-
-		valid_state = true;
-	}
-
-	static void jit_init()
-	{
-		signal2( SIGINT, jit_catch );
-		signal2( SIGILL, jit_catch );
-		signal2( SIGSEGV, jit_catch );
-		getcontext( &outer_ctx );
-		getcontext( &jit_ctx1 );
-		getcontext( &jit_ctx2 );
-	}*/
-
 	static bool jit_continue()
 	{
+		// TODO: ARM memory might have been invalidated meantime
+		// check if break was on a ARM line and recompile if needed
+		// this has quite some problems though
+
+		// if there still is a breakpoint at the current location
+		// unpatch it single step in host using TF
+		// and then repatch the BP finally continue execution
+		// the repatch is done in the fiber_cb
+		breakpoint_defs::break_info *bi =
+			breakpoints_base<T>::resolve( (char*)UlongToPtr(CONTEXT_EIP(fiber->context.uc_mcontext)) );
+		if (bi && bi->patched)
+		{
+			repatch = bi;
+			*bi->pos = bi->original_byte;
+			CONTEXT_EFLAGS(fiber->context.uc_mcontext) |= (1 << 8); // set trap flag
+		}
+
 		fiber->do_continue();
 		return true;
 	}
@@ -492,6 +435,15 @@ template <typename T> struct runner
 	static void internal_cb(Fiber *f)
 	{
 		static bool initialized = false;
+		if (repatch)
+		{
+			// single step caused this
+			*repatch->pos = DEBUG_BREAK;
+			repatch = 0;
+			f->do_continue();
+			return;
+		}
+
 		exception_context<T>::context.ctx = f->context;
 		if (initialized)
 			breakpoints_base<T>::trigger( resolve_eip<T>() );
@@ -507,18 +459,9 @@ template <typename T> struct runner
 
 };
 
-/*
-template <typename T> ucontext_t runner<T>::jit_ctx1;
-template <typename T> ucontext_t runner<T>::jit_ctx2;
-template <typename T> ucontext_t runner<T>::outer_ctx;
-template <typename T> ucontext_t* runner<T>::jit_front = &runner<T>::jit_ctx1;
-template <typename T> ucontext_t* runner<T>::jit_back = &runner<T>::jit_ctx2;
-template <typename T> bool runner<T>::valid_state = false;
-*/
-
 template <typename T> Fiber* runner<T>::fiber;
 template <typename T> Fiber::fiber_cb* runner<T>::cb;
-
+template <typename T> breakpoint_defs::break_info* runner<T>::repatch = 0;
 
 
 void STDCALL ARM9_Init(Fiber::fiber_cb cb)

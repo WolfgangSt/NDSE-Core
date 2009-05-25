@@ -38,33 +38,6 @@
 
 char NOT_SUPPORTED_YET_BUT_SKIP = '\x90';
 
-
-
-// mov to declaration if booting from THUMB is needed
-/*
-#pragma warning(push)
-#pragma warning(disable:4731)
-void compiled_block<IS_ARM>::emulate(unsigned long subaddr, emulation_context &ctx)
-{
-	char *start = remap[subaddr >> T::INSTRUCTION_SIZE_LG2];
-	FlushInstructionCache( GetCurrentProcess(), start, code_size - (start - code) );
-	__asm
-	{
-		mov eax, start
-		mov edx, ctx
-		pushad		
-		sub esp, 4096    // reserve some stack that hopefully wont get overwritten
-
-		mov ebp, edx
-		call eax // GO!
-
-		add esp, 4096    // restore stack
-		popad
-	}
-}
-#pragma warning(pop)
-*/
-
 #define WRITE_P(p) { void *x = p; s.write((char*)&x, sizeof(x)); }
 #define OFFSET(z) ((char*)&__context_helper.z - (char*)&__context_helper)
 // need to find a better way to do calls ...

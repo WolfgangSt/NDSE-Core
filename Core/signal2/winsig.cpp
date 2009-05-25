@@ -1,8 +1,7 @@
-#include "winsig.h"
+#include "../osdep.h"
 #include <iostream>
 #include <stdlib.h>
 #include <assert.h>
-
 
 int mprotect(const void *addr, size_t len, int prot)
 {

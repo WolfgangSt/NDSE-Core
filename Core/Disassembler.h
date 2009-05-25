@@ -1388,7 +1388,9 @@ public:
 			return;
 
 		case 0xE: // software bp
-			return inst_debug();
+			ctx.instruction = INST::BKPT;
+			return;
+			//return inst_debug();
 		}
 		inst_ud();
 	}

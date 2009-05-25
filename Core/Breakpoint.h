@@ -21,7 +21,7 @@
 
 // need to guard the breakpoint table
 // as JIT threads read on crash and emulator UI thread might change
-// concurrently as they resolve using a boost mutex here
+// concurrently as they resolve
 
 template <typename T>
 class breakpoints_base: public breakpoint_defs
