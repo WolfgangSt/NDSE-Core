@@ -40,12 +40,13 @@
 			<Tool
 				Name="VCCLCompilerTool"
 				Optimization="0"
-				AdditionalIncludeDirectories="&quot;$(SolutionDir)..\contrib\distorm64&quot;;&quot;$(SolutionDir)..\contrib\libelf&quot;;&quot;$(SolutionDir)..\contrib\itl\trunk\itl\src&quot;"
-				PreprocessorDefinitions="WIN32;_DEBUG;_CONSOLE"
+				AdditionalIncludeDirectories="&quot;$(SolutionDir)..\contrib\distorm64&quot;;&quot;$(SolutionDir)..\contrib\libelf&quot;;&quot;$(SolutionDir)..\contrib\itl\trunk\itl\src&quot;;&quot;$(SolutionDir)..\contrib\libdwarf&quot;"
+				PreprocessorDefinitions="WIN32;_DEBUG;_CONSOLE;NDSE"
 				MinimalRebuild="true"
 				BasicRuntimeChecks="3"
 				RuntimeLibrary="3"
 				DisableLanguageExtensions="false"
+				TreatWChar_tAsBuiltInType="false"
 				UsePrecompiledHeader="0"
 				WarningLevel="4"
 				WarnAsError="false"
@@ -64,7 +65,7 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
-				AdditionalDependencies="kernel32.lib user32.lib libdistormd.lib libelfd.lib winmm.lib QTCored4.lib $(NOINHERIT)"
+				AdditionalDependencies="kernel32.lib user32.lib libdistormd.lib libelfd.lib libdwarfd.lib winmm.lib QTCored4.lib $(NOINHERIT)"
 				OutputFile="$(OutDir)\$(ProjectName)d.dll"
 				LinkIncremental="2"
 				AdditionalLibraryDirectories="$(OutDir)"
@@ -127,10 +128,11 @@
 			<Tool
 				Name="VCCLCompilerTool"
 				Optimization="0"
-				AdditionalIncludeDirectories="&quot;$(SolutionDir)..\contrib\distorm64&quot;;&quot;$(SolutionDir)..\contrib\libelf&quot;;&quot;$(SolutionDir)..\contrib\itl\trunk\itl\src&quot;"
-				PreprocessorDefinitions="WIN32;NDEBUG;_CONSOLE"
+				AdditionalIncludeDirectories="&quot;$(SolutionDir)..\contrib\distorm64&quot;;&quot;$(SolutionDir)..\contrib\libelf&quot;;&quot;$(SolutionDir)..\contrib\itl\trunk\itl\src&quot;;&quot;$(SolutionDir)..\contrib\libdwarf&quot;"
+				PreprocessorDefinitions="WIN32;NDEBUG;_CONSOLE;NDSE"
 				StringPooling="true"
 				RuntimeLibrary="2"
+				TreatWChar_tAsBuiltInType="false"
 				UsePrecompiledHeader="0"
 				WarningLevel="3"
 				Detect64BitPortabilityProblems="true"
@@ -147,7 +149,7 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
-				AdditionalDependencies="kernel32.lib user32.lib libdistorm.lib libelf.lib winmm.lib QTCore4.lib $(NOINHERIT)"
+				AdditionalDependencies="kernel32.lib user32.lib libdistorm.lib libelf.lib libdwarf.lib winmm.lib QTCore4.lib $(NOINHERIT)"
 				LinkIncremental="1"
 				AdditionalLibraryDirectories="$(OutDir)"
 				ModuleDefinitionFile="Exports.def"
@@ -207,7 +209,7 @@
 			/>
 			<Tool
 				Name="VCCLCompilerTool"
-				AdditionalIncludeDirectories="&quot;$(SolutionDir)..\contrib\distorm64&quot;;&quot;$(SolutionDir)..\contrib\libelf&quot;;&quot;$(SolutionDir)..\contrib\itl\trunk\itl\src&quot;"
+				AdditionalIncludeDirectories="&quot;$(SolutionDir)..\contrib\distorm64&quot;;&quot;$(SolutionDir)..\contrib\libelf&quot;;&quot;$(SolutionDir)..\contrib\itl\trunk\itl\src&quot;;&quot;$(SolutionDir)..\contrib\libdwarf&quot;"
 				PreprocessorDefinitions="WIN32;NDEBUG;_CONSOLE"
 				RuntimeLibrary="2"
 				UsePrecompiledHeader="0"
@@ -456,6 +458,18 @@
 			</File>
 			<File
 				RelativePath=".\Logging.h"
+				>
+			</File>
+			<File
+				RelativePath=".\SourceDebug.cpp"
+				>
+			</File>
+			<File
+				RelativePath=".\SourceDebug.h"
+				>
+			</File>
+			<File
+				RelativePath=".\SourceInfo.h"
 				>
 			</File>
 		</Filter>

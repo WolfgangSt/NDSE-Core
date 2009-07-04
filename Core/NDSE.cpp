@@ -28,6 +28,7 @@
 #include "loader_elf.h"
 #include "Processor.h"
 #include "io_observe.h"
+#include "SourceDebug.h"
 
 #include "NDSE.h"
 #include "osdep.h"
@@ -369,6 +370,8 @@ template <typename T> struct runner
 	static Fiber *fiber;
 	static Fiber::fiber_cb *cb;
 	static breakpoint_defs::break_info *repatch;
+	static const source_set* skipsrc;
+	static breakpoint_defs::stepmode skipmode;
 	typedef void (*jit_function)();
 
 
@@ -448,6 +451,9 @@ template <typename T> struct runner
 		if (initialized)
 			breakpoints_base<T>::trigger( resolve_eip<T>() );
 		else initialized = true;
+		if (skipsrc)
+			if (skipcb())
+				return;
 		cb(f);
 	}
 
@@ -457,12 +463,47 @@ template <typename T> struct runner
 		fiber = Fiber::create( STACK_SIZE, internal_cb);
 	}
 
+	static bool skipcb()
+	{
+		// check if current trigger was in the source set
+		// if so continue stepping
+		breakpoint_defs::break_info *bi = breakpoints_base<T>::get_last_error();
+		if (bi)
+		{
+			unsigned long addr = bi->block->addr;
+			// if the address is within the source set continue stepping
+			for (source_set::info_set::const_iterator it =
+				skipsrc->set.begin(); it != skipsrc->set.end(); ++it)
+			{
+				source_info *si = *it;
+				if ((addr >= si->lopc) && (addr < si->hipc)) // inside block?
+				{
+					// continue
+					if (processor<T>::context.regs[15] & 1)
+						breakpoints<T, IS_THUMB>::step(skipmode);
+					else breakpoints<T, IS_ARM>::step(skipmode);
+					jit_continue();
+					return true;
+				}
+			}
+		}
+		return false;
+	}
+
+	static void skipline(const source_set *line, breakpoint_defs::stepmode mode)
+	{
+		skipsrc = line;
+		skipmode = mode;
+		skipcb();
+	}
+
 };
 
 template <typename T> Fiber* runner<T>::fiber;
 template <typename T> Fiber::fiber_cb* runner<T>::cb;
 template <typename T> breakpoint_defs::break_info* runner<T>::repatch = 0;
-
+template <typename T> const source_set* runner<T>::skipsrc = 0;
+template <typename T> breakpoint_defs::stepmode runner<T>::skipmode;
 
 void STDCALL ARM9_Init(Fiber::fiber_cb cb)
 {
@@ -591,6 +632,32 @@ const char* STDCALL DEBUGGER_GetSymbol(void *addr)
 	return it->second;
 };
 
+const wchar_t* STDCALL DEBUGGER_GetFilename(int fileno)
+{
+	if ((fileno < 0) || (fileno >= (int)source_debug::files.size()))
+		return 0;
+	return source_debug::files[fileno].filename.c_str();
+}
+
+const source_info* STDCALL DEBUGGER_SourceLine(int fileno, int lineno, int idx)
+{
+	if ((fileno < 0) || (fileno > (int)source_debug::files.size()) || (lineno < 0) || (idx < 0))
+		return 0;
+
+	std::vector<source_infos*> &sil = source_debug::files[fileno].lineinfo;
+	if (lineno >= (int)sil.size())
+		return 0;
+	source_infos *sis = sil[lineno];
+	if (!sis)
+		return 0;
+	if (idx >= (int)sis->size())
+		return 0;
+	std::list<source_info*>::iterator it = sis->begin();
+	while (idx--)
+		++it;
+	return *it;
+}
+
 
 void STDCALL ARM9_GetJITA(unsigned long addr, jit_code *code)
 {
@@ -621,6 +688,43 @@ void STDCALL ARM7_SetPC(unsigned long addr)
 void STDCALL ARM9_SetPC(unsigned long addr)
 {
 	return runner<_ARM9>::jit_rebranch(addr);
+}
+
+source_info* STDCALL ARM7_SourceLine(unsigned long /*addr*/, int /*idx*/)
+{
+	return 0; // not differentiated yet for ARM7/9
+}
+
+source_info* STDCALL ARM9_SourceLine(unsigned long addr, int idx)
+{
+	const source_set *set = source_debug::line_for(addr);
+	if (!set)
+		return 0;
+
+	if (idx >= 0)
+	{
+		source_set::info_set::const_iterator it = set->set.begin();
+		source_set::info_set::const_iterator end = set->set.end();
+		while (idx--)
+		{
+			++it;
+			if (it == end)
+				return 0;
+		}
+		return *it;
+	} else
+	{
+		source_set::info_set::const_reverse_iterator it = set->set.rbegin();
+		source_set::info_set::const_reverse_iterator end = set->set.rend();
+		idx++;
+		while (idx < 0)
+		{
+			++it;
+			if (it == end)
+				return 0;
+		}
+		return *it;
+	}
 }
 
 

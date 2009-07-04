@@ -9,7 +9,9 @@ struct breakpoint_defs
 		STEP_OVER_ARM, 
 		STEP_INTO_ARM,
 		STEP_OVER_EMU,
-		STEP_INTO_EMU 
+		STEP_INTO_EMU,
+		STEP_OVER_SRC,
+		STEP_INTO_SRC
 	};
 
 		class break_data;
@@ -41,6 +43,7 @@ struct breakpoint_defs
 		break_info jit_line[MAX_SUBINSTRUCTIONS];
 		
 
+#ifdef NDSE
 		break_data()
 		{
 			for (unsigned int i = 0; i < MAX_SUBINSTRUCTIONS; i++)
@@ -50,6 +53,12 @@ struct breakpoint_defs
 				bi.subaddr = i;
 			}
 		}
+#else
+		explicit break_data()
+		{
+			assert(0);
+		}
+#endif
 
 		void operator =( const break_data &other )
 		{

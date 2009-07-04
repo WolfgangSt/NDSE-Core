@@ -265,6 +265,24 @@ public:
 				}
 				break;
 
+			case breakpoint_defs::STEP_INTO_SRC:
+				{
+					const source_set *src = source_debug::line_for(last->block->addr);
+					if (!src)
+						return; // there was no line info available for the break
+					runner<T>::skipline( src, STEP_INTO_ARM );
+					break;
+				}
+			case breakpoint_defs::STEP_OVER_SRC:
+				{
+					const source_set *src = source_debug::line_for(last->block->addr);
+					if (!src)
+						return; // there was no line info available for the break
+					runner<T>::skipline( src, STEP_OVER_ARM );
+					break;
+				}
+
+
 			case breakpoint_defs::STEP_OVER_EMU:
 				if (next_sub < last->block->jit_instructions)
 				{
@@ -275,7 +293,13 @@ public:
 			}
 			// if reaching here, process a simple stop over
 			set_onetime( next_addr, 0, 0, 0, 1 );
-		} else set_onetime( processor<T>::context.regs[15], 0, 0, 0, 1 );
+		} else 
+		{
+			// use R15
+			unsigned long addr = processor<T>::context.regs[15];
+			unsigned long next_addr = addr + U::INSTRUCTION_SIZE;
+			set_onetime( addr, 0, next_addr, 0, 2 );
+		}
 	}
 
 	// enables a single step bp

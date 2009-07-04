@@ -1,10 +1,10 @@
 #include "PhysMem.h"
 #include "MemMap.h"
 
-#define RGB(r,g,b) (r | (g << 8) | (b << 16))
+#define _RGB(r,g,b) (r | (g << 8) | (b << 16))
 
 memory_region< PAGING >          memory::null_region("(NULL)",                0x0000FF00, 0);
-memory_region< PAGING >          memory::hle_bios("HLE BIOS", RGB(199,199,23), 1);        // 0xEFEF0000
+memory_region< PAGING >          memory::hle_bios("HLE BIOS", _RGB(199,199,23), 1);        // 0xEFEF0000
 
 
 memory_region< PAGING::KB<64> >  memory::accessory_ram("DS Accessory RAM",    0x00000000, 1); 
@@ -31,7 +31,7 @@ memory_region< PAGING::KB<8> >   memory::registers1("IO registers 0", 0x00000000
 memory_region< PAGING::B<512> >  memory::registers2("IO registers 1", 0x00000000, 1); // 0x04001000
 memory_region< PAGING::B<512> >  memory::registers3("IO registers 2", 0x00000000, 1); // 0x04100000
 
-memory_region< PAGING::B<4096> >  memory::cart_header("CART Header", RGB(138,236,170), 1); // 0x027FF000
+memory_region< PAGING::B<4096> >  memory::cart_header("CART Header", _RGB(138,236,170), 1); // 0x027FF000
 
 // VRAM banks
 memory_region< PAGING::KB<128> > memory::vram_a("VRAM-A", 0x00000000, 2);

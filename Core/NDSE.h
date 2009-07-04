@@ -9,6 +9,7 @@
 #include "HostContext.h"
 #include "CompiledBlock.h"
 #include "jitcode.h"
+#include "SourceInfo.h"
 
 #ifdef WIN32
 #define STDCALL __stdcall 
@@ -52,6 +53,7 @@ IMPORT const breakpoint_defs::break_data* STDCALL ARM7_GetBreakpointT(unsigned l
 IMPORT void STDCALL ARM7_GetJITA(unsigned long addr, jit_code *code);
 IMPORT void STDCALL ARM7_GetJITT(unsigned long addr, jit_code *code);
 IMPORT void STDCALL ARM7_SetPC(unsigned long addr);
+IMPORT source_info* STDCALL ARM7_SourceLine(unsigned long addr, int idx);
 
 IMPORT memory_block* STDCALL ARM9_GetPage(unsigned long addr);
 IMPORT const char* STDCALL ARM9_DisassembleA(unsigned long op, unsigned long addr);
@@ -70,6 +72,9 @@ IMPORT const breakpoint_defs::break_data* STDCALL ARM9_GetBreakpointT(unsigned l
 IMPORT void STDCALL ARM9_GetJITA(unsigned long addr, jit_code *code);
 IMPORT void STDCALL ARM9_GetJITT(unsigned long addr, jit_code *code);
 IMPORT void STDCALL ARM9_SetPC(unsigned long addr);
+IMPORT source_info* STDCALL ARM9_SourceLine(unsigned long addr, int idx);
+
+
 
 IMPORT bool STDCALL UTIL_LoadFile(const char *filename, util::load_result *result);
 IMPORT memory_region_base* STDCALL MEM_GetVRAM(int bank);
@@ -79,6 +84,8 @@ IMPORT const memory_region_base* STDCALL MEM_GetRegionInfo(memory_block *p);
 IMPORT void STDCALL DEFAULT_Log(log_callback cb);
 
 IMPORT const char* STDCALL DEBUGGER_GetSymbol(void *addr);
+IMPORT const wchar_t* STDCALL DEBUGGER_GetFilename(int fileno);
+IMPORT const source_info* STDCALL DEBUGGER_SourceLine(int fileno, int lineno, int idx);
 
 }
 

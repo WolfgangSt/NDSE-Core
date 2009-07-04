@@ -48,9 +48,12 @@ EXPORTS
 	ARM9_ToggleBreakpointT
 	ARM9_GetBreakpointA
 	ARM9_GetBreakpointT
+	ARM9_SourceLine
 	
 	ARM9_Callstack
 
 	DEBUGGER_GetSymbol
+	DEBUGGER_GetFilename
+	DEBUGGER_SourceLine
 
 
