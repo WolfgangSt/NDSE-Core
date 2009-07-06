@@ -182,7 +182,7 @@ char* FASTCALL_IMPL(HLE<T>::compile_and_link_branch_a_real(unsigned long addr))
 			b->recompile<T, IS_THUMB>();
 	}
 
-	if (addr & 3)
+	if (addr & 1)
 	{
 		compiled_block<IS_THUMB>* &block = b->get_jit<T, IS_THUMB>();
 		if ( !block )                         // if not compiled yet

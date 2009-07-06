@@ -1088,13 +1088,26 @@ void compiler::compile_instruction()
 				} else
 				{
 					pop = num;
-					for (int i = 15; i >= 0; i--)
+
+					// check PC
+					if (ctx.imm & (1 << 15))
+					{
+						// not tested!
+						s << DEBUG_BREAK;
+						s << "\x8B\x4D" << (char)OFFSET(regs[15]);             // mov ecx, [ebp+R15]
+						s << "\x81\xE1"; write( s, (unsigned long)(~PAGING::ADDRESS_MASK | 1) ); // and ecx, ~PAGING::ADDR_MASK | 1
+						s << "\x81\xC1"; write( s, (unsigned long)(inst+1) << INST_BITS); // add ecx, imm
+						s << '\x51'; // push ecx
+					}
+
+					for (int i = 14; i >= 0; i--)
 					{
 						if (ctx.imm & (1 << i))
 						{
 							s << "\xFF\x75" << (char)OFFSET(regs[i]); // push dword ptr[ebp+Ri]
 						}
 					}
+					
 
 					s << '\x54';              // push esp
 				}
@@ -1108,11 +1121,11 @@ void compiler::compile_instruction()
 
 			// w-bit is set, update destination register
 			// but only when it was not in the loaded list!
-			if (!(ctx.imm & (1 << ctx.rn)))
+			//if (!(ctx.imm & (1 << ctx.rn)))
 				update_dest(num);
 		}
 		break;
-
+	case INST::LDM:
 	case INST::LDM_W:
 		{
 			unsigned long num, highest, lowest;
@@ -1167,7 +1180,8 @@ void compiler::compile_instruction()
 				break;
 			}
 			// w-bit is set, update destination register
-			update_dest(num);
+			if (ctx.instruction == INST::LDM_W)
+				update_dest(num);
 
 			// if PC was specified handle the jump!
 			if (ctx.imm & (1 << 15))
