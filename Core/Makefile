@@ -4,15 +4,15 @@ AR =		ar
 QT_ROOT = /opt/qtsdk-2009.02/qt
 QT_INC = $(QT_ROOT)/include
 QT_LIB = $(QT_ROOT)/lib
-INCLUDES =	-I. -I../contrib/itl/trunk/itl/src -I../contrib/distorm64 -I../contrib/libelf -I$(QT_INC) -I$(QT_INC)/QtCore
-CFLAGS =	-fPIC -g -O2 $(INCLUDES)
+INCLUDES =	-I. -I../contrib/itl/trunk/itl/src -I../contrib/distorm64 -I../contrib/libelf -I../contrib/libdwarf -I$(QT_INC) -I$(QT_INC)/QtCore
+CFLAGS = -fPIC -g -O2 $(INCLUDES) -D NDSE
 LIBS = -lQtCore
 LIBDIRS = -L$(QT_LIB)
 LDFLAGS = $(LIBDIRS) $(LIBS)
 
 SRCS=Breakpoint.cpp Compiler.cpp Disassembler.cpp HLE.cpp \
  	Interrupt.cpp io_observe.cpp loader_elf.cpp loader_nds.cpp \
- 	Mem.cpp NDSE.cpp PhysMem.cpp Util.cpp \
+ 	Mem.cpp NDSE.cpp PhysMem.cpp Util.cpp runner.cpp SourceDebug.cpp \
 	signal2/nixsig.cpp
 #OBJS	:=	$(addprefix Debug/,$(notdir $(SRCS:.cpp=.o)))
 OBJS	:=	$(addprefix Debug/,$(SRCS:.cpp=.o))
