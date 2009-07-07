@@ -1,6 +1,9 @@
 #ifndef _SOURCEDEBUG_
 #define _SOURCEDEBUG_
 
+// TODO: wrap structures to shared_ptr's and replace
+// containers with reentrant versions to enable concurrent
+
 // transparent interface for source level debugging
 // infos will currently only be loaded through DWARF library
 // as this is based on the time the DWARF loader was written
@@ -77,13 +80,17 @@ struct source_debug
 	static DebugMap debug_map;
 	static std::deque<source_fileinfo> files;
 
-	// not used yet!
-	static void clear();
 	static void add(unsigned long start, unsigned long end, source_info* info, bool include_end);
 	
 	static int add_source(const std::string &src);
 	static void debug_print();
 	static const source_set* line_for(unsigned long addr);
+
+	// purges all debug infos
+	// warning this is not reentrant with debugging requests
+	// thus possibly unstable at the moment
+	// might leak atm
+	static void clear(); 
 };
 
 

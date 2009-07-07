@@ -8,6 +8,8 @@
 #include <libdwarf/dwarf.h>
 #include <vector>
 
+#include "Breakpoint.h" // for DEBUGGING only!
+
 //#include <QDir> // just for debugging! remove later!
 
 void loader_elf::init()
@@ -195,8 +197,16 @@ static void process_die(Dwarf_Die die)
 	si->lineno = (int)line;
 	si->colno  = -1;
 	if (name)
+	{
 		si->symbol = name;
-	source_debug::add( (unsigned long)lopc, (unsigned long)hipc, si, false );
+		// DEBUG DEBUG DEBUG CODE
+		if (si->symbol == "main")
+			breakpoints<_ARM9, IS_THUMB>::toggle( lopc, 0 );
+	}
+
+
+	// DONT ADD ANYMORE ONLY USE LINEINFOS FOR THE MOMENT
+	//source_debug::add( (unsigned long)lopc, (unsigned long)hipc, si, false );
 
 	// Deprecated: single line infos get merged in by ::add_line call
 	/*
@@ -424,7 +434,7 @@ static bool load_debug(Dwarf_Debug dbg)
 
 			// load the CU DIE and extract all address mappings that could be found
 			// this grants address -> symbol lookup
-			//load_die(root);
+			load_die(root);
 		}
 	}
 
@@ -441,6 +451,10 @@ static bool load_debug(Elf *elf)
 {
 	Dwarf_Error err;
 	Dwarf_Debug dbg;
+
+	// wipe current debug infos
+	source_debug::clear();
+
 	if (dwarf_elf_init( elf, DW_DLC_READ, 0, 0, &dbg, &err ) != DW_DLV_OK)
 		return false;
 	load_debug(dbg);

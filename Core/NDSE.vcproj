@@ -41,7 +41,7 @@
 				Name="VCCLCompilerTool"
 				Optimization="0"
 				AdditionalIncludeDirectories="&quot;$(SolutionDir)..\contrib\distorm64&quot;;&quot;$(SolutionDir)..\contrib\libelf&quot;;&quot;$(SolutionDir)..\contrib\itl\trunk\itl\src&quot;;&quot;$(SolutionDir)..\contrib\libdwarf&quot;"
-				PreprocessorDefinitions="WIN32;_DEBUG;_CONSOLE;NDSE"
+				PreprocessorDefinitions="WIN32;_DEBUG;_CONSOLE;NDSE;_CRT_SECURE_NO_WARNINGS"
 				MinimalRebuild="true"
 				BasicRuntimeChecks="3"
 				RuntimeLibrary="3"
@@ -52,7 +52,6 @@
 				WarnAsError="false"
 				Detect64BitPortabilityProblems="true"
 				DebugInformationFormat="4"
-				DisableSpecificWarnings="4996"
 			/>
 			<Tool
 				Name="VCManagedResourceCompilerTool"
@@ -129,7 +128,7 @@
 				Name="VCCLCompilerTool"
 				Optimization="0"
 				AdditionalIncludeDirectories="&quot;$(SolutionDir)..\contrib\distorm64&quot;;&quot;$(SolutionDir)..\contrib\libelf&quot;;&quot;$(SolutionDir)..\contrib\itl\trunk\itl\src&quot;;&quot;$(SolutionDir)..\contrib\libdwarf&quot;"
-				PreprocessorDefinitions="WIN32;NDEBUG;_CONSOLE;NDSE"
+				PreprocessorDefinitions="WIN32;NDEBUG;_CONSOLE;NDSE;_CRT_SECURE_NO_WARNINGS"
 				StringPooling="true"
 				RuntimeLibrary="2"
 				TreatWChar_tAsBuiltInType="false"
