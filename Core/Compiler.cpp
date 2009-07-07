@@ -11,6 +11,21 @@
 
 #include "osdep.h"
 
+
+////////////////////////////////////////////////////////////////////////////////
+// IMPORTANT BUGS
+// flag prediction:
+// the lookahead optimizer will remove flag updates if the follow up instruction
+// would overwrite the flag.
+// in a similiar fashion it removes restores when a consuming instruction
+// follows straight after a producing instruction.
+//
+// A problem that can arise with that is when some branch goes to a consuming 
+// instruction (this should be handled within the branch HLE for performance!)
+//
+// A second problem is 2 instruction branches in thumb mode beeing on different
+// pages .
+
 /*
 [23:49] <sgstair> arm7 docs show STM writes out the base at the end of the second cycle of the instruction, and a LDM always overwrites the updated base if the base is in the list.
 [23:50] <sgstair> so if the base is the lowest register in the list, STM writes the unchanged base, otherwise it writes the final base.
@@ -396,7 +411,7 @@ const unsigned long cpsr_masks[16] =
 compiler::compiler() : s(std::ostringstream::binary | std::ostringstream::out)
 {
 	flags_updated = false;
-	preoff = 0;
+	//preoff = 0;
 }
 
 void compiler::record_callstack()
@@ -413,12 +428,25 @@ void compiler::update_callstack()
 	s << '\x59'; // pop ecx
 }
 
+
+void compiler::add_ecx_bpre()
+{
+	// originally was
+	// s << "\x81\xC1"; write( s, bpre + ctx.imm - 4 );   // add ecx, imm
+	// but this causes trouble with bpre beeing in the previous page
+	// could do trickier optimization here though
+
+	s << "\x81\xC1"; write( s, ctx.imm - 4 );             // add ecx, imm
+	s << "\x03\x4D" << (char)OFFSET(bpre);				  // add ecx, [ebp+bpre]
+	s << "\xC7\x45" << (char)OFFSET(bpre); write( s, 0 ); // mov [ebp+bpre], 0
+}
+
 void compiler::compile_instruction()
 {
 	bool patch_jump = false;
 	std::ostringstream::pos_type jmpbyte;
-	unsigned long bpre = preoff;
-	preoff = 0;
+	//unsigned long bpre = preoff;
+	//preoff = 0;
 	int flags_actual = flags_updated;
 
 	if (ctx.cond != CONDITION::AL)
@@ -610,7 +638,7 @@ void compiler::compile_instruction()
 		record_callstack();
 		s << "\x81\xE1"; write( s, (unsigned long)(~1) );  // and ecx, ~1
 		s << "\x83\xE0\xFE";                               // and eax, 0FFFFFFFEh 
-		s << "\x81\xC1"; write( s, bpre + ctx.imm - 4 );   // add ecx, imm
+		add_ecx_bpre();
 		s << "\x89\x4D" << (char)OFFSET(regs[15]);         // mov [ebp+r15], ecx
 		JMP(HLE<_ARM9>::compile_and_link_branch_a)
 		break;
@@ -621,7 +649,7 @@ void compiler::compile_instruction()
 		s << "\x81\xC1"; write( s, (unsigned long)(inst+1) << INST_BITS);        // add ecx, imm
 		s << "\x89\x4D" << (char)OFFSET(regs[14]);             // mov [ebp+r14], ecx
 		record_callstack();
-		s << "\x81\xC1"; write( s, bpre + ctx.imm - 4 );       // add ecx, imm
+		add_ecx_bpre();
 		s << "\x89\x4D" << (char)OFFSET(regs[15]);             // mov [ebp+r15], ecx
 		JMP(HLE<_ARM9>::compile_and_link_branch_a)
 		break;
@@ -660,8 +688,9 @@ void compiler::compile_instruction()
 		//s << "\xFF\xE0";                              // jmp eax
 		break;
 	case INST::BPRE:
-		preoff = ctx.imm;
-		s << "\x90";
+		//preoff = ctx.imm;
+		// VC bug: mov [ebp+0x10], 0xbadc0de => mov byte ptr ...
+		s << "\xC7\x45" << (char)OFFSET(bpre); write( s, (unsigned long)ctx.imm); // mov [ebp+bpre], offset
 		break;
 
 

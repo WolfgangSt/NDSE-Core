@@ -34,7 +34,7 @@ private:
 	std::ostringstream s;
 	std::list<unsigned long> reloc_table;
 	int flags_updated;
-	unsigned long preoff; // for thumb BPRE
+	//unsigned long preoff; // for thumb BPRE
 	disassembler::context ctx;
 	compiler();
 	int INST_BITS;
@@ -77,6 +77,7 @@ private:
 
 	void record_callstack();
 	void update_callstack();
+	void add_ecx_bpre();
 
 	void compile_instruction();
 	void epilogue(char *&mem, size_t &size);
@@ -118,6 +119,7 @@ public:
 		}
 		// final interation
 		c.ctx = d.get_context();
+		c.lookahead_s = false;
 		cb.remap[PAGING::INST<T>::NUM-1] = (char*)0 + c.tellp();
 		c.inst = PAGING::INST<T>::NUM-1;
 		c.compile_instruction();

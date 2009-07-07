@@ -14,6 +14,14 @@ struct CPU_NAME { static const char *name; };
 template<> const char *CPU_NAME<_ARM7>::name = "Arm7";
 template<> const char *CPU_NAME<_ARM9>::name = "Arm9";
 
+#ifdef DEBUGGING
+void DEBUG_STORE(unsigned long addr, unsigned long sz)
+{
+// add memory debugger here
+}
+#else
+#define DEBUG_STORE(addr,sz)
+#endif
 
 template <typename T>
 void HLE<T>::invalid_read(unsigned long addr)
@@ -78,6 +86,7 @@ unsigned long FASTCALL_IMPL(HLE<T>::load8u(unsigned long addr))
 template <typename T>
 void FASTCALL_IMPL(HLE<T>::store32(unsigned long addr, unsigned long value))
 {
+	DEBUG_STORE(addr, 4);
 	memory_block *b = memory_map<T>::addr2page(addr);
 	if (b->flags & (memory_block::PAGE_INVALID | memory_block::PAGE_WRITEPROT))
 		return invalid_write(addr);
@@ -88,6 +97,7 @@ void FASTCALL_IMPL(HLE<T>::store32(unsigned long addr, unsigned long value))
 template <typename T>
 void FASTCALL_IMPL(HLE<T>::store16(unsigned long addr, unsigned long value))
 {
+	DEBUG_STORE(addr, 2);
 	memory_block *b = memory_map<T>::addr2page(addr);
 	if (b->flags & (memory_block::PAGE_INVALID | memory_block::PAGE_WRITEPROT))
 		return invalid_write(addr);
@@ -98,6 +108,7 @@ void FASTCALL_IMPL(HLE<T>::store16(unsigned long addr, unsigned long value))
 template <typename T>
 void FASTCALL_IMPL(HLE<T>::store8(unsigned long addr, unsigned long value))
 {
+	DEBUG_STORE(addr, 1);
 	memory_block *b = memory_map<T>::addr2page(addr);
 	if (b->flags & (memory_block::PAGE_INVALID | memory_block::PAGE_WRITEPROT))
 		return invalid_write(addr);
@@ -108,6 +119,7 @@ void FASTCALL_IMPL(HLE<T>::store8(unsigned long addr, unsigned long value))
 template <typename T>
 void HLE<T>::store32_array(unsigned long addr, int num, unsigned long *data)
 {	
+	DEBUG_STORE(addr, num*4);
 	//logging<_ARM9>::logf("storing %i words to %08x", num, addr);
 	const unsigned long *end = data + num;
 	// load first page
@@ -181,7 +193,6 @@ char* FASTCALL_IMPL(HLE<T>::compile_and_link_branch_a_real(unsigned long addr))
 		if ( b->get_jit<T, IS_THUMB>() )
 			b->recompile<T, IS_THUMB>();
 	}
-
 	if (addr & 1)
 	{
 		compiled_block<IS_THUMB>* &block = b->get_jit<T, IS_THUMB>();

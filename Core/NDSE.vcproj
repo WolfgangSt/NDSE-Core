@@ -323,16 +323,16 @@
 					RelativePath=".\Compiler.h"
 					>
 				</File>
-				<File
-					RelativePath=".\HLE.h"
-					>
-				</File>
 			</Filter>
 			<Filter
 				Name="HLE"
 				>
 				<File
 					RelativePath=".\HLE.cpp"
+					>
+				</File>
+				<File
+					RelativePath=".\HLE.h"
 					>
 				</File>
 				<Filter
