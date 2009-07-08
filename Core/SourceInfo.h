@@ -1,6 +1,8 @@
 #ifndef _SOURCEINFO_H_
 #define _SOURCEINFO_H_
 
+#include <string>
+
 struct source_info
 {
 	// contains whatever the lines mapped 

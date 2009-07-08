@@ -2,6 +2,7 @@
 #define _BREAKPOINTBASE_H_
 
 #include <map>
+#include <assert.h>
 
 struct breakpoint_defs
 {

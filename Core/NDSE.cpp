@@ -428,7 +428,7 @@ source_info* STDCALL ARM9_SourceLine(unsigned long addr, int idx)
 	}
 }
 
-
+#if 0
 int main(int /*argc*/, char** /*argv*/)
 {
 	for (int i = -10; i < 10; i++)
@@ -444,4 +444,5 @@ int main(int /*argc*/, char** /*argv*/)
 	std::cin.get();
 	return 0;
 }
+#endif
 
