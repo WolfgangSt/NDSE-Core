@@ -51,8 +51,8 @@ private:
 		handle(SIGINT);
 		handle(SIGILL);	
 		handle(SIGTSTP);	
-		//raise(SIGSEGV);
-		raise(SIGINT); // for debugging with GDB!		
+		raise(SIGSEGV);
+		//raise(SIGINT); // for debugging with GDB!		
 		for (;;)
 			do_callback();
 	}
