@@ -5,7 +5,7 @@ QT_ROOT = /opt/qtsdk-2009.02/qt
 QT_INC = $(QT_ROOT)/include
 QT_LIB = $(QT_ROOT)/lib
 INCLUDES =	-I. -I../contrib/itl/trunk/itl/src -I../contrib/distorm64 -I../contrib/libelf -I../contrib/libdwarf -I$(QT_INC) -I$(QT_INC)/QtCore
-CFLAGS = -fPIC -g -O2 $(INCLUDES) -D NDSE
+CFLAGS = -fPIC -g -O2 -fvisibility=hidden $(INCLUDES) -DNDSE -DEXPORT
 LIBS = -lQtCore
 LIBDIRS = -L$(QT_LIB)
 LDFLAGS = $(LIBDIRS) $(LIBS)

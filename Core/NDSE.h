@@ -24,7 +24,11 @@
 	#define IMPORT
 	#endif
 #else
+	#ifdef WIN32
 	#define IMPORT EXPORT
+	#else
+	#define IMPORT __attribute__((visibility("default")))
+	#endif
 #endif
 
 struct memory_block;
@@ -90,3 +94,4 @@ IMPORT const source_info* STDCALL DEBUGGER_SourceLine(int fileno, int lineno, in
 }
 
 #endif
+
