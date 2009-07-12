@@ -53,6 +53,7 @@ template <typename T, typename U> void memory_block::recompile()
 	if (b)
 		delete b;
 	b = new compiled_block<U>(this);
+	compiler::compile<T,U>(*b);
 	breakpoints<T,U>::template for_region< adjust_breakpoints<T,U> >::f( mem, mem + PAGING::SIZE );
 }
 

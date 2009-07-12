@@ -365,9 +365,9 @@ void compiler::generic_load_x()
 {
 	switch (ctx.extend_mode)
 	{
-	case EXTEND_MODE::H:  CALL(HLE<_ARM9>::load16u); break;
-	//case EXTEND_MODE::SB: CALL(HLE<_ARM9>::load8s); break; // special instruction ...
-	case EXTEND_MODE::SH: CALL(HLE<_ARM9>::load16s); break; // special instruction ...
+	case EXTEND_MODE::H:  CALLP(load16u); break;
+	//case EXTEND_MODE::SB: CALLP(load8s); break; // special instruction ...
+	case EXTEND_MODE::SH: CALLP(load16s); break; // special instruction ...
 	default:
 		s << DEBUG_BREAK;
 	}
@@ -377,9 +377,9 @@ void compiler::generic_store_x()
 {
 	switch (ctx.extend_mode)
 	{
-	case EXTEND_MODE::H:  CALL(HLE<_ARM9>::store16); break;
-	//case EXTEND_MODE::SB: CALL(HLE<_ARM9>::store8s); break; // special instruction ...
-	//case EXTEND_MODE::SH: CALL(HLE<_ARM9>::store16s); break; // special instruction ...
+	case EXTEND_MODE::H:  CALLP(store16); break;
+	//case EXTEND_MODE::SB: CALLP(store8s); break; // special instruction ...
+	//case EXTEND_MODE::SH: CALLP(store16s); break; // special instruction ...
 	default:
 		s << DEBUG_BREAK;
 	}
@@ -417,14 +417,14 @@ compiler::compiler() : s(std::ostringstream::binary | std::ostringstream::out)
 void compiler::record_callstack()
 {
 	s << '\x51'; // push ecx
-	CALL(HLE<_ARM9>::pushcallstack);
+	CALLP(pushcallstack);
 	s << '\x59'; // pop ecx
 }
 
 void compiler::update_callstack()
 {
 	s << '\x51'; // push ecx
-	CALL(HLE<_ARM9>::popcallstack);
+	CALLP(popcallstack);
 	s << '\x59'; // pop ecx
 }
 
@@ -499,9 +499,20 @@ void compiler::compile_instruction()
 		break;
 
 	case INST::MOV_R:
-		load_shifter_imm();
-		
+		if ((ctx.rd == ctx.rm) && (ctx.imm == 0))
+		{
+			if (ctx.rd == 12)
+			{
+				s << "\x8B\x4D" << (char)OFFSET(regs[15]);             // mov ecx, [ebp+R15]
+				s << "\x81\xE1"; write( s, (unsigned long)(~PAGING::ADDRESS_MASK | 1) ); // and ecx, ~PAGING::ADDR_MASK
+				s << "\x81\xC1"; write( s, (unsigned long)(inst+1) << INST_BITS);  
+				CALLP(debug_magic)
+			} else
+				s << "\x90"; // << DEBUG_BREAK;
+			break;
+		}
 
+		load_shifter_imm();
 		if (ctx.rd == 0xF)
 		{
 			if (ctx.flags & disassembler::S_BIT)
@@ -510,7 +521,7 @@ void compiler::compile_instruction()
 			s << "\x83\xE1\x01";                       // and ecx, 1
 			s << "\x0B\xC8";                           // or ecx, eax
 			s << "\x89\x4D" << (char)OFFSET(regs[15]); // mov [ebp+rd], ecx
-			JMP(HLE<_ARM9>::compile_and_link_branch_a)
+			JMPP(compile_and_link_branch_a)
 		} else
 		{
 			s << "\x89\x45" << (char)OFFSET(regs[ctx.rd]); // mov [ebp+rd], eax
@@ -558,7 +569,7 @@ void compiler::compile_instruction()
 		break;
 	case INST::STR_I:
 		generic_store();
-		CALL(HLE<_ARM9>::store32)
+		CALLP(store32)
 		generic_loadstore_postupdate_imm();		
 		break;
 
@@ -572,19 +583,19 @@ void compiler::compile_instruction()
 		break;
 	case INST::STRB_IP:
 		generic_store_p();
-		CALL(HLE<_ARM9>::store8) 
+		CALLP(store8) 
 		break;
 	case INST::STR_IP:
 		generic_store_p();
-		CALL(HLE<_ARM9>::store32) 
+		CALLP(store32) 
 		break;
 	case INST::STR_RP:
 		generic_store_r();
-		CALL(HLE<_ARM9>::store32) 
+		CALLP(store32) 
 		break;
 	case INST::STRB_RP:
 		generic_store_r();
-		CALL(HLE<_ARM9>::store8) 
+		CALLP(store8) 
 		break;
 
 
@@ -592,29 +603,29 @@ void compiler::compile_instruction()
 	case INST::LDR_I:
 		generic_load_post();
 		generic_loadstore_postupdate_imm();
-		CALL(HLE<_ARM9>::load32)
+		CALLP(load32)
 		s << "\x89\x45" << (char)OFFSET(regs[ctx.rd]);  // mov [ebp+rd], eax
 		break;
 
 	// Pre index loads
 	case INST::LDR_IP:
 		generic_load();
-		CALL(HLE<_ARM9>::load32)
+		CALLP(load32)
 		s << "\x89\x45" << (char)OFFSET(regs[ctx.rd]);  // mov [ebp+rd], eax
 		break;
 	case INST::LDR_RP:
 		generic_load_r();
-		CALL(HLE<_ARM9>::load32) 
+		CALLP(load32) 
 		s << "\x89\x45" << (char)OFFSET(regs[ctx.rd]);  // mov [ebp+rd], eax
 		break;
 	case INST::LDRB_IP: 
 		generic_load();
-		CALL(HLE<_ARM9>::load8u)
+		CALLP(load8u)
 		s << "\x89\x45" << (char)OFFSET(regs[ctx.rd]);  // mov [ebp+rd], eax
 		break;
 	case INST::LDRB_RP: 
 		generic_load_r();
-		CALL(HLE<_ARM9>::load8u)
+		CALLP(load8u)
 		s << "\x89\x45" << (char)OFFSET(regs[ctx.rd]);  // mov [ebp+rd], eax
 		break;
 	case INST::LDRX_IP:
@@ -640,7 +651,7 @@ void compiler::compile_instruction()
 		s << "\x83\xE0\xFE";                               // and eax, 0FFFFFFFEh 
 		add_ecx_bpre();
 		s << "\x89\x4D" << (char)OFFSET(regs[15]);         // mov [ebp+r15], ecx
-		JMP(HLE<_ARM9>::compile_and_link_branch_a)
+		JMPP(compile_and_link_branch_a)
 		break;
 	case INST::BL:
 		// Branch and link
@@ -651,14 +662,14 @@ void compiler::compile_instruction()
 		record_callstack();
 		add_ecx_bpre();
 		s << "\x89\x4D" << (char)OFFSET(regs[15]);             // mov [ebp+r15], ecx
-		JMP(HLE<_ARM9>::compile_and_link_branch_a)
+		JMPP(compile_and_link_branch_a)
 		break;
 	case INST::BX:
 		// Branch to register (generally R14)
 		s << "\x8B\x4D" << (char)OFFSET(regs[ctx.rm]); // mov ecx, [ebp+rm]
 		s << "\x89\x4D" << (char)OFFSET(regs[15]);     // mov [ebp+r15], ecx
 		update_callstack();
-		JMP(HLE<_ARM9>::compile_and_link_branch_a)
+		JMPP(compile_and_link_branch_a)
 		//s << "\xFF\xE0";                               // jmp eax
 		break;
 
@@ -672,7 +683,7 @@ void compiler::compile_instruction()
 		// branch
 		s << "\x8B\x4D" << (char)OFFSET(regs[ctx.rm]);         // mov ecx, [ebp+Rm]
 		s << "\x89\x4D" << (char)OFFSET(regs[15]);             // mov [ebp+r15], ecx
-		JMP(HLE<_ARM9>::compile_and_link_branch_a)
+		JMPP(compile_and_link_branch_a)
 		//s << "\xFF\xE0";                                       // jmp eax
 		break;
 	// case BLX_I => use +bpre
@@ -684,7 +695,7 @@ void compiler::compile_instruction()
 		s << "\x81\xC1"; write( s, ctx.imm + (unsigned long)((inst) << INST_BITS)); // add ecx, imm
 		s << "\x89\x4D" << (char)OFFSET(regs[15]);    // mov [ebp+r15], ecx
 		update_callstack();
-		JMP(HLE<_ARM9>::compile_and_link_branch_a)
+		JMPP(compile_and_link_branch_a)
 		//s << "\xFF\xE0";                              // jmp eax
 		break;
 	case INST::BPRE:
@@ -778,7 +789,7 @@ void compiler::compile_instruction()
 				case 0x1: // TCM remapping
 					load_ecx_reg_or_pc(ctx.rd);           // mov ecx, [ebp+rd]
 					s << '\xBA'; s.write( (char*)&ctx.cp_op2, sizeof(ctx.cp_op2) ); // mov edx, ctx.cp_op2
-					CALL(HLE<_ARM9>::remap_tcm);
+					CALLP(remap_tcm);
 					break;
 				default:
 					s << '\x90'; // lockdown not emulated
@@ -1050,7 +1061,7 @@ void compiler::compile_instruction()
 		else
 		{
 			if (ctx.rn & 0x7)
-				CALL(HLE<_ARM9>::is_priviledged)
+				CALLP(is_priviledged)
 			
 			s << "\x8B\x45" << (char)OFFSET(regs[ctx.rm]); // mov eax, [ebp+Rm]
 			if (ctx.rn != 0xF)
@@ -1100,7 +1111,7 @@ void compiler::compile_instruction()
 			case 1: // simple 32bit store
 				load_ecx_single();      // load ecx, start_address
 				s << "\x8B\x55" << (char)OFFSET(regs[highest]); // mov edx, dword ptr [ebp+R_highest]
-				CALL(HLE<_ARM9>::store32) // dont use array store but simple store here!
+				CALLP(store32) // dont use array store but simple store here!
 				break;
 			default:
 				unsigned int pop = 0;
@@ -1144,7 +1155,7 @@ void compiler::compile_instruction()
 				
 				// determine start address
 				push_multiple(num);
-				CALL(HLE<_ARM9>::store32_array) 
+				CALLP(store32_array) 
 				s << "\x83\xC4" << (char)((pop+3) << 2);       // add esp, num*4
 			}
 
@@ -1167,7 +1178,7 @@ void compiler::compile_instruction()
 				break;
 			case 1: // simple 32bit store
 				load_ecx_single();      // load ecx, start_address
-				CALL(HLE<_ARM9>::load32) // dont use array load but simple load here!
+				CALLP(load32) // dont use array load but simple load here!
 				s << "\x89\x45" << (char)OFFSET(regs[highest]); // mov [ebp+R_highest], eax
 				break;
 			default:
@@ -1183,7 +1194,7 @@ void compiler::compile_instruction()
 					}
 					s << '\x6A' << (char)num;   // push num
 					push_multiple(num);
-					CALL(HLE<_ARM9>::load32_array) 
+					CALLP(load32_array) 
 					s << "\x83\xC4\x0C";        // add esp, 3*4
 				} else
 				{
@@ -1192,7 +1203,7 @@ void compiler::compile_instruction()
 					s << '\x54';                         // push esp
 					s << '\x6A' << (char)num;            // push num
 					push_multiple(num);
-					CALL(HLE<_ARM9>::load32_array) 
+					CALLP(load32_array) 
 					s << "\x83\xC4\x0C";                 // add esp, 3*4
 
 										
@@ -1217,14 +1228,14 @@ void compiler::compile_instruction()
 			{
 				s << "\x8B\x4D" << (char)OFFSET(regs[15]); // mov ecx, [ebp+R15]
 				update_callstack();
-				JMP(HLE<_ARM9>::compile_and_link_branch_a)
+				JMPP(compile_and_link_branch_a)
 			}
 		}
 		break;
 
 	case INST::SWI:
 		s << "\xB9"; write(s, ctx.imm); // mov ecx, imm
-		CALL(HLE<_ARM9>::swi);
+		CALLP(swi);
 		break;
 
 	case INST::UD:
@@ -1261,7 +1272,7 @@ void compiler::epilogue(char *&mem, size_t &size)
 	s << "\x81\xE1"; write( s, (unsigned long)(~PAGING::ADDRESS_MASK | 1) ); // and ecx, ~PAGING::ADDR_MASK | 1
 	s << "\x81\xC1"; write( s, (unsigned long)PAGING::SIZE);  // add ecx, imm
 	s << "\x89\x4D" << (char)OFFSET(regs[15]); // mov [ebp+r15], ecx
-	JMP(HLE<_ARM9>::compile_and_link_branch_a)
+	JMPP(compile_and_link_branch_a)
 	//s << "\xFF\xE0";                           // jmp eax
 	
 	// some instruction reaches end of block
@@ -1290,13 +1301,4 @@ void compiler::epilogue(char *&mem, size_t &size)
 std::ostringstream::pos_type compiler::tellp()
 {
 	return s.tellp();
-}
-
-template <> void compiler::init_mode<IS_ARM>()
-{
-	INST_BITS = IS_ARM::INSTRUCTION_SIZE_LG2;
-}
-template <> void compiler::init_mode<IS_THUMB>()
-{
-	INST_BITS = IS_THUMB::INSTRUCTION_SIZE_LG2;
 }

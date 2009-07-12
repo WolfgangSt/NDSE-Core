@@ -27,9 +27,11 @@ memory_region< PAGING::KB<256> > memory::exp_wram("Internal Expanded Work RAM", 
 memory_region< PAGING::KB<64> >  memory::arm7_wram("ARM7 Exclusive Internal Work RAM", 0x00000000, 1);
 memory_region< PAGING::B<0x10400> >  memory::system_rom("System ROM", 0x00000000, 1);
 
-memory_region< PAGING::KB<8> >   memory::registers1("IO registers 0", 0x00000000, 1); // 0x04000000
-memory_region< PAGING::B<512> >  memory::registers2("IO registers 1", 0x00000000, 1); // 0x04001000
-memory_region< PAGING::B<512> >  memory::registers3("IO registers 2", 0x00000000, 1); // 0x04100000
+memory_region< PAGING::KB<8> >   memory::registers9_1("IO registers 9.0", 0x00000000, 1); // 0x04000000
+memory_region< PAGING::B<512> >  memory::registers9_2("IO registers 9.1", 0x00000000, 1); // 0x04001000
+memory_region< PAGING::B<512> >  memory::registers9_3("IO registers 9.2", 0x00000000, 1); // 0x04100000
+
+memory_region< PAGING::KB<8> >   memory::registers7_1("IO registers 7.0", 0x00000000, 1); // 0x04000000
 
 memory_region< PAGING::B<4096> >  memory::cart_header("CART Header", _RGB(138,236,170), 1); // 0x027FF000
 
@@ -71,7 +73,8 @@ const memory_region_base* memory::regions[memory::NUM_REGIONS] = {
 	&exp_wram,
 	&arm7_wram,
 	&system_rom,
-	&registers1,
+	&registers9_1,
+	&registers7_1,
 	&cart_header
 };
 
@@ -85,7 +88,7 @@ template <> void memory::initializer<_ARM7>::initialize_mapping()
 	memory_map<_ARM7>::map_region( &exp_wram,      PAGING::REGION(0x06000000, 0x07000000) );
 	//memory_map<_ARM7>::map_region( &wcom_wait1,    PAGING::PAGES<0x04808000>::PAGE );
 	//memory_map<_ARM7>::map_region( &wcom_wait0,    PAGING::PAGES<0x04800000>::PAGE );
-	//memory_map<_ARM7>::map_region( &ioregs,        PAGING::PAGES<0x04000000>::PAGE );
+	memory_map<_ARM7>::map_region( &registers7_1,  PAGING::PAGES<0x04000000>::PAGE );
 
 	memory_map<_ARM7>::map_region( &arm7_wram,     PAGING::REGION(0x03800000, 0x04000000) );
 	memory_map<_ARM7>::map_region( &arm7_shared,   PAGING::REGION(0x03000000, 0x03800000) );
@@ -111,7 +114,7 @@ template <> void memory::initializer<_ARM9>::initialize_mapping()
 			
 	memory_map<_ARM9>::map_region( &oam_ab,        PAGING::PAGES<0x07000000>::PAGE );
 	memory_map<_ARM9>::map_region( &palettes,      PAGING::PAGES<0x05000000>::PAGE );
-	memory_map<_ARM9>::map_region( &registers1,    PAGING::PAGES<0x04000000>::PAGE );
+	memory_map<_ARM9>::map_region( &registers9_1,  PAGING::PAGES<0x04000000>::PAGE );
 			
 			
 	//memory_map<_ARM9>::map_region( &data_tcm,      PAGING::REGION(0x027E0000, 0x02800000) );

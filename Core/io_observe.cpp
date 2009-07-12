@@ -5,11 +5,12 @@
 // move this to DMA threads (= parallelize)
 // alternativly use memcpy's if instant DMA is wanted
 
-io_observer::reactor_page io_observer::reactor_data[memory::REGISTERS1::PAGES];
+io_observer::reactor_page io_observer::reactor_data9[memory::REGISTERS9_1::PAGES];
+io_observer::reactor_page io_observer::reactor_data7[memory::REGISTERS7_1::PAGES];
 
 unsigned long *reg_at(unsigned long offset)
 {
-	return (unsigned long*)&memory::registers1.blocks[
+	return (unsigned long*)&memory::registers9_1.blocks[
 		offset / PAGING::SIZE].mem[offset & PAGING::ADDRESS_MASK
 		];
 }
@@ -288,18 +289,18 @@ void remap_vmem()
 
 void fake_ipc_sync()
 {
-	unsigned long *pfifo = reinterpret_cast<unsigned long*>(&memory::registers1.blocks[0].mem[0x180]);
+	unsigned long *pfifo = reinterpret_cast<unsigned long*>(&memory::registers9_1.blocks[0].mem[0x180]);
 	*pfifo = (*pfifo & ~0xF) | (((*pfifo >> 8) + 1) & 0xF);
 }
 
 
-void io_observer::process()
+void io_observer::process9()
 {
 	bool remap_v = false;
-	for (unsigned int i = 0; i < memory::registers1.pages; i++)
+	for (unsigned int i = 0; i < memory::registers9_1.pages; i++)
 	{
-		memory_block &b = memory::registers1.blocks[i];
-		reactor_page &p = reactor_data[i];
+		memory_block &b = memory::registers9_1.blocks[i];
+		reactor_page &p = reactor_data9[i];
 		if (!b.react())
 			continue;
 
@@ -354,10 +355,17 @@ void io_observer::process()
 				break;
 			case 0x180:
 				name = "IPC Synchronize Register";
+				// sync to arm7 IPC
+				// = bmem[j]
+				//*(unsigned short*)(memory::registers7_1.start->mem + 0x180) =
+				//*(unsigned short*)(memory::registers9_1.start->mem + 0x180);
 				fake_ipc_sync();
 				break;
 			case 0x184:
 				name = "IPC Fifo Control Register";
+				break;
+			case 0x1C0:
+				name = "[SPICNT] SPI Bus Control/Status Register";
 				break;
 			case 0x204:
 				name = "[EXMEMCNT] External memory control";
@@ -398,7 +406,7 @@ void io_observer::process()
 				break;
 			}
 			
-			logging<_DEFAULT>::logf("IO reactor thread detected change at %08X from %08X to %08X [%s]", 
+			logging<_DEFAULT>::logf("IO reactor thread detected change at ARM9:%08X from %08X to %08X [%s]", 
 				addr, p[j], bmem[j], name);
 
 			// update
@@ -409,25 +417,80 @@ void io_observer::process()
 		remap_vmem();
 }
 
-void io_observer::io_write(memory_block*)
+void io_observer::process7()
 {
-	process();
+	bool remap_v = false;
+	for (unsigned int i = 0; i < memory::registers7_1.pages; i++)
+	{
+		memory_block &b = memory::registers7_1.blocks[i];
+		reactor_page &p = reactor_data7[i];
+		if (!b.react())
+			continue;
+
+		// pull the new data
+		unsigned long *bmem = (unsigned long*)&b.mem;
+		unsigned long addr_base = i * PAGING::SIZE;
+		for (unsigned int j = 0; j < PAGING::SIZE/sizeof(unsigned long); j++)
+		{
+			if (p[j] == bmem[j])
+				continue;
+
+			const char *name = "<unknown>";
+			unsigned long addr = addr_base + j * sizeof(unsigned long);
+			
+			/*
+			switch (addr)
+			{
+			// 0x208 = IME
+			// 0x1C0 = SPICNT
+			}
+			*/
+			
+			logging<_DEFAULT>::logf("IO reactor thread detected change at ARM7:%08X from %08X to %08X [%s]", 
+				addr, p[j], bmem[j], name);
+
+			// update
+			p[j] = bmem[j];
+		}
+	}
+	if (remap_v)
+		remap_vmem();
 }
+
+void io_observer::io_write9(memory_block*)
+{
+	process9();
+}
+
+void io_observer::io_write7(memory_block*)
+{
+	process7();
+}
+
 
 
 void io_observer::init()
 {
-	memset( reactor_data, 0, sizeof(reactor_data) );
+	memset( reactor_data9, 0, sizeof(reactor_data9) );
+	memset( reactor_data7, 0, sizeof(reactor_data7) );
 	//reactor_data[0][0x180 >> 2] = 0xEFEFEFEF; // fifo fake sync init
 
 	memset( cur_maps<_ARM7>::mapping, 0, sizeof(cur_maps<_ARM7>::mapping) );
 	memset( cur_maps<_ARM9>::mapping, 0, sizeof(cur_maps<_ARM9>::mapping) );
 
 	// register direct callbacks needed to properly sync
-	for (unsigned long i = 0; i < memory::registers1.pages; i++)
+	// arm9 pages init
+	for (unsigned long i = 0; i < memory::registers9_1.pages; i++)
 	{
-		memory_block &b = memory::registers1.blocks[i];
-		b.writecb = io_write;
+		memory_block &b = memory::registers9_1.blocks[i];
+		b.writecb = io_write9;
+	}
+
+	// arm7 pages init
+	for (unsigned long i = 0; i < memory::registers7_1.pages; i++)
+	{
+		memory_block &b = memory::registers7_1.blocks[i];
+		b.writecb = io_write7;
 	}
 
 	//static io_observer i;

@@ -8,7 +8,7 @@ class loader_elf
 {
 public:
 	static bool is_valid(int fd);
-	static bool load(int fd, util::load_result &res);
+	static bool load(int fd, util::load_result &res, util::load_hint lh);
 
 	// allows just loading debug infos from an .elf
 	// this is useful for metrowerks concept where they generate a debug .elf

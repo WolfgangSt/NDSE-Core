@@ -146,7 +146,8 @@ struct stream_nds
 	}
 };
 
-bool loader_nds::load(int fd, util::load_result &res)
+// load hint not needed as .nds contains both arm7 and arm9
+bool loader_nds::load(int fd, util::load_result &res, util::load_hint /*lh*/)
 {
 	ndsheader hdr;
 	assert(sizeof(hdr) == 512);
@@ -167,5 +168,6 @@ bool loader_nds::load(int fd, util::load_result &res)
 		fd );
 	res.arm7_entry = hdr.main.sub_entry_address;
 
+	res.flags = util::LOAD_ARM7 | util::LOAD_ARM9;
 	return true;
 }

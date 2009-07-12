@@ -125,9 +125,9 @@ unsigned short STDCALL UTIL_GetCRC16(unsigned short crc, char* addr, int len)
 	return util::get_crc16( crc, addr, len );
 }
 
-bool STDCALL UTIL_LoadFile(const char *filename, util::load_result *result)
+bool STDCALL UTIL_LoadFile(const char *filename, util::load_result *result, util::load_hint lh)
 {
-	return util::load_file(filename, *result);
+	return util::load_file(filename, *result, lh);
 }
 
 unsigned short STDCALL BIOS_ARM9_GetCRC16(unsigned short crc, unsigned long addr, int len)

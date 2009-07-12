@@ -61,7 +61,7 @@ const unsigned short util::crc16tab[256] =
 
 
 
-bool util::load_file(const char *filename, util::load_result &res)
+bool util::load_file(const char *filename, util::load_result &res, load_hint lh)
 {
 	int fd; 
 	bool result = false;
@@ -73,9 +73,9 @@ bool util::load_file(const char *filename, util::load_result &res)
 	res.arm9_entry = 0;
 	try {
 		if (loader_nds::is_valid(fd))
-			result = loader_nds::load(fd, res);
+			result = loader_nds::load(fd, res, lh);
 		else if (loader_elf::is_valid(fd))
-			result = loader_elf::load(fd, res);
+			result = loader_elf::load(fd, res, lh);
 	} catch (...)
 	{
 		result = false;

@@ -80,7 +80,7 @@ IMPORT source_info* STDCALL ARM9_SourceLine(unsigned long addr, int idx);
 
 
 
-IMPORT bool STDCALL UTIL_LoadFile(const char *filename, util::load_result *result);
+IMPORT bool STDCALL UTIL_LoadFile(const char *filename, util::load_result *result, util::load_hint lh);
 IMPORT memory_region_base* STDCALL MEM_GetVRAM(int bank);
 IMPORT unsigned long STDCALL PageSize();
 IMPORT unsigned long STDCALL DebugMax();

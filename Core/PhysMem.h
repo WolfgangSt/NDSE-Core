@@ -42,14 +42,21 @@ struct memory
 	static memory_region< PAGING::KB<16> >  arm7_sys_rom;
 	static memory_region< PAGING::KB<8>  >  arm9_sys_rom;
 	
-	typedef memory_region< PAGING::KB<8> > REGISTERS1;
-	static REGISTERS1                       registers1; // 0x04000000 - 0x04002000
-	static memory_region< PAGING::B<512> >  registers2; // 0x04001000
-	static memory_region< PAGING::B<512> >  registers3; // 0x04100000
+	
+	// arm9 ioregs
+	typedef memory_region< PAGING::KB<8> > REGISTERS9_1; // arm9 io regs
+	static REGISTERS9_1                    registers9_1; // 0x04000000 - 0x04002000
+	static memory_region< PAGING::B<512> > registers9_2; // 0x04001000
+	static memory_region< PAGING::B<512> > registers9_3; // 0x04100000
+
+	// arm7 ioregs
+	typedef memory_region< PAGING::KB<8> > REGISTERS7_1; // arm7 io regs
+	static REGISTERS7_1                    registers7_1; // 0x04000000 - 0x04002000
+
 
 	static memory_region< PAGING::B<4096> > cart_header; // 0x027FF000
 
-	enum { NUM_REGIONS = 26 };
+	enum { NUM_REGIONS = 27 };
 	static const memory_region_base* regions[NUM_REGIONS];
 
 	static memory_block* get_nullblock()

@@ -1,4 +1,3 @@
-#include "HLE.h"
 #include "Logging.h"
 #include "Mem.h" // for namespaces _ARM
 #include "MemMap.h"
@@ -6,6 +5,8 @@
 #include "Processor.h"
 #include "PhysMem.h"
 #include "lz77.h"
+#include "runner.h"
+#include "HLE.h"
 #include <QThread>
 
 template <typename>
@@ -214,41 +215,58 @@ char* FASTCALL_IMPL(HLE<T>::compile_and_link_branch_a_real(unsigned long addr))
 // migh get overwritten by the compile call!
 // this is compiler dependant as i dont know any way to do this
 // highlevel yet ...
-template <typename T>
-char HLE<T>::compile_and_link_branch_a[7];
+template <typename T> char HLE<T>::compile_and_link_branch_a[7];
+template <typename T> char HLE<T>::invoke_arm[19];
 
 
-// this needs rewrite!
+// might need patching under nix
+typedef void (FASTCALL(*invoke_fun))(unsigned long, void*);
+
+// if possible remove the wrapping!
 template <typename T>
-void HLE<T>::invoke(unsigned long /*addr*/, emulation_context *ctx)
+void HLE<T>::invoke(unsigned long addr, emulation_context *ctx)
 {
-	DebugBreak_();
-	ctx->regs[14] = 0xEFEF0000;
-/*	
-	__asm
-	{
-		push ebp
-		mov ecx, addr
-		mov ebp, ctx
-		call compile_and_link_branch_a_real
-		call eax
-		pop ebp
-	}
-*/
+	((invoke_fun)&invoke_arm)(addr, ctx);
 }
+
+#define OFFSET(z) ((char*)&__context_helper.z - (char*)&__context_helper)
+static emulation_context __context_helper; // temporary for OFFSET calculation
 
 template <typename T>
 void HLE<T>::init()
 {
-	std::ostringstream s;
-	char *data = HLE<T>::compile_and_link_branch_a;
-	char *func = (char*)&HLE<T>::compile_and_link_branch_a_real;
-	unsigned long d = func - data - 5;
-	s << '\xE8'; s.write((char*)&d, sizeof(d)); // call func
-	s << "\xFF\xE0";                            // jmp eax
-	std::string str = s.str();
-	memcpy( data, str.data(), str.size() );
+	{
+		std::ostringstream s;
+		char *data = HLE<T>::compile_and_link_branch_a;
+		char *func = (char*)&HLE<T>::compile_and_link_branch_a_real;
+		unsigned long d = func - data - 5;
+		s << '\xE8'; s.write((char*)&d, sizeof(d)); // call func
+		s << "\xFF\xE0";                            // jmp eax
+		std::string str = s.str();
+		memcpy( data, str.data(), str.size() );
+	}
+	{
+		std::ostringstream s;
+		char *data = HLE<T>::invoke_arm;
+		char *func = (char*)&HLE<T>::compile_and_link_branch_a_real;
+		unsigned long d = func - data - 5 - 10; // 3 bytes stackframe
+		unsigned long ret = 0xEFEF0000;
+		// input: ecx = arm addr, edx = context pointer
+		s << '\x55';                                      // push ebp
+		s << "\x8B\xEA";                                  // mov ebp, edx
+		s << "\xC7\x45" << (char)OFFSET(regs[14]);        // mov [ebp+LR]
+		s.write((char*)&ret, sizeof(ret));                //   , 0xEFEF0000
+		s << '\xE8'; s.write((char*)&d, sizeof(d));       // call func
+		s << "\xFF\xD0";                                  // call eax
+		s << '\x5D';                                      // pop ebp
+		s << '\xC3';                                      // ret
+
+		std::string str = s.str();
+		memcpy( data, str.data(), str.size() );		
+	}
 }
+
+#undef OFFSET
 
 bool InitHLE()
 {
@@ -390,8 +408,7 @@ public:
 	}
 };
 
-template <>
-void HLE<_ARM9>::LZ77UnCompVram()
+template <> void HLE<_ARM9>::LZ77UnCompVram()
 {
 	logging<_ARM9>::logf("SWI 12h [LZ77UnCompVram] called");
 	static lz77<decomp> dc;
@@ -400,26 +417,107 @@ void HLE<_ARM9>::LZ77UnCompVram()
 	dc.finish();
 }
 
+template <> void HLE<_ARM9>::sqrt()
+{
+	logging<_ARM9>::logf("SWI 8h [sqrt] called (noimpl)");
+	DebugBreak_(); // not yet supported
+}
+
+template <> void HLE<_ARM9>::CpuSet()
+{
+	logging<_ARM9>::logf("SWI Bh [CpuSet] called (noimpl)");
+	DebugBreak_(); // not yet supported
+}
+
+
+struct stream_crc16
+{
+	struct context
+	{
+		unsigned long crc;
+	};
+
+	static void process(memory_block *b, char *mem, int sz, context &ctx)
+	{
+		if (b->flags & (memory_block::PAGE_INVALID | memory_block::PAGE_READPROT))
+		{
+			logging<_DEFAULT>::logf("Invalid page accessed during crc16 swi");
+			DebugBreak_();
+		}
+		ctx.crc = util::get_crc16(ctx.crc, mem, sz);
+	}
+};
+
+template <typename T> void HLE<T>::crc16()
+{
+	// r0  Initial CRC value (16bit, usually FFFFh)
+	// r1  Start Address   (must be aligned by 2)
+	// r2  Length in bytes (must be aligned by 2)
+	logging<T>::logf("SWI Eh [crc16] called");
+
+	stream_crc16::context ctx;
+	ctx.crc  = processor<T>::context.regs[0];
+	unsigned long addr = processor<T>::context.regs[1];
+	unsigned long len  = processor<T>::context.regs[2];
+	if (addr & 1)
+	{
+		logging<T>::logf("Address not aligned: %08X", addr);
+		DebugBreak_();
+	}
+	if (len & 1)
+	{
+		logging<T>::logf("Length aligned: %08X", len);
+		DebugBreak_();
+	}
+	memory_map<T>::process_memory<stream_crc16>( addr, len, ctx );
+	processor<T>::context.regs[0] = ctx.crc;
+}
+
+
+
 class QPseudoThread: public QThread
 {
 public:
 	static void do_sleep(int ms)
 	{
-		usleep(ms);
+		msleep(ms);
 	}
 };
+
+template <typename T> void HLE<T>::IntrWait()
+{
+	//logging<_ARM9>::logf("SWI 4h [IntrWait] called (noimpl)");
+	QPseudoThread::do_sleep(20);
+	//DebugBreak_(); // not yet supported
+}
 
 template <>
 void FASTCALL_IMPL(HLE<_ARM9>::swi(unsigned long idx))
 {
 	switch (idx)
 	{
+	case 0x4: return HLE<_ARM9>::IntrWait();
 	case 0x5: return QPseudoThread::do_sleep(20); //Sleep(20);
+	case 0x8: return HLE<_ARM9>::sqrt();
+	case 0xB: return HLE<_ARM9>::CpuSet();
 	case 0x12: return HLE<_ARM9>::LZ77UnCompVram();
 	}
 	logging<_ARM9>::logf("Unhandled SWI %08X called", idx);
 	DebugBreak_();
 }
+
+template <>
+void FASTCALL_IMPL(HLE<_ARM7>::swi(unsigned long idx))
+{
+	switch (idx)
+	{
+	case 0x4: return HLE<_ARM7>::IntrWait();
+	case 0xE: return HLE<_ARM7>::crc16();
+	}
+	logging<_ARM7>::logf("Unhandled SWI %08X called", idx);
+	DebugBreak_();
+}
+
 
 
 /*
@@ -433,6 +531,14 @@ ARM9:[0x027FF000-0x02800000) (???)
 ARM9:[0x02800000-0x02BE0000) (RAM image)
 
 */
+
+template <>
+void FASTCALL_IMPL(HLE<_ARM7>::remap_tcm(unsigned long /*value*/, unsigned long /*mode*/))
+{
+	logging<_ARM7>::logf("Invalid TCM command (ARM7?)");
+	DebugBreak_();
+}
+
 
 template <>
 void FASTCALL_IMPL(HLE<_ARM9>::remap_tcm(unsigned long value, unsigned long mode))
@@ -489,4 +595,22 @@ void symbols::init()
 	syms[(void*)HLE<_ARM9>::pushcallstack]             = "arm9::dbg::callstack::push";
 	syms[(void*)HLE<_ARM9>::popcallstack]              = "arm9::dbg::callstack::pop";
 	syms[(void*)HLE<_ARM9>::swi]                       = "arm9::swi";
+	syms[(void*)HLE<_ARM9>::debug_magic]               = "arm9::debugmagic";
+
+	syms[(void*)HLE<_ARM7>::load32]                    = "arm7::mem::load32";
+	syms[(void*)HLE<_ARM7>::load16u]                   = "arm7::mem::load16u";
+	syms[(void*)HLE<_ARM7>::load16s]                   = "arm7::mem::load16s";
+	syms[(void*)HLE<_ARM7>::load8u]                    = "arm7::mem::load8u";
+	syms[(void*)HLE<_ARM7>::store32]                   = "arm7::mem::store32";
+	syms[(void*)HLE<_ARM7>::store16]                   = "arm7::mem::store16";
+	syms[(void*)HLE<_ARM7>::store8]                    = "arm7::mem::store8";
+	syms[(void*)HLE<_ARM7>::store32_array]             = "arm7::mem::store32_array";
+	syms[(void*)HLE<_ARM7>::load32_array]              = "arm7::mem::load32_array";
+	syms[(void*)HLE<_ARM7>::compile_and_link_branch_a] = "arm7::arm::branch";
+	syms[(void*)HLE<_ARM7>::is_priviledged]            = "arm7::is_priviledged";
+	syms[(void*)HLE<_ARM7>::remap_tcm]                 = "arm7::TCM";
+	syms[(void*)HLE<_ARM7>::pushcallstack]             = "arm7::dbg::callstack::push";
+	syms[(void*)HLE<_ARM7>::popcallstack]              = "arm7::dbg::callstack::pop";
+	syms[(void*)HLE<_ARM7>::swi]                       = "arm7::swi";
+	syms[(void*)HLE<_ARM7>::debug_magic]               = "arm7::debugmagic";
 }

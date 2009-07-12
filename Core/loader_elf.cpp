@@ -58,7 +58,7 @@ struct stream_elf
 };
 
 static bool load_debug(Elf *elf);
-bool loader_elf::load(int fd, util::load_result &res)
+bool loader_elf::load(int fd, util::load_result &res, util::load_hint lh)
 {
 	stream_elf::context sd;
 	Elf *arf = elf_begin( fd, ELF_C_READ, 0 );
@@ -66,7 +66,6 @@ bool loader_elf::load(int fd, util::load_result &res)
 		return false;
 
 	sd.ehdr = elf32_getehdr(arf);
-	res.arm9_entry = sd.ehdr->e_entry;
 	sd.sect = elf_getscn(arf, 0);
 	while (sd.sect) // loop over all sections
 	{
@@ -83,10 +82,26 @@ bool loader_elf::load(int fd, util::load_result &res)
 				sd.buffer = (char*)sd.data->d_buf;
 				
 				//logging<_ARM9>::logf("streaming section from %08X to %08X", sd.addr, sd.addr + sd.data->d_size);
-				memory_map<_ARM9>::process_memory<stream_elf>( 
-					sd.addr,
-					(int)sd.data->d_size, 
-					sd );
+				switch (lh)
+				{
+				case util::LH_ARM7:
+					res.flags |= util::LOAD_ARM7;
+					res.arm7_entry = sd.ehdr->e_entry;
+					memory_map<_ARM7>::process_memory<stream_elf>( 
+						sd.addr,
+						(int)sd.data->d_size, 
+						sd );
+					break;
+				case util::LH_ARM9:
+				default:
+					res.flags |= util::LOAD_ARM9;
+					res.arm9_entry = sd.ehdr->e_entry;
+					memory_map<_ARM9>::process_memory<stream_elf>( 
+						sd.addr,
+						(int)sd.data->d_size, 
+						sd );
+					break;
+				}
 			}
 			sd.data = elf_getdata( sd.sect, sd.data );
 		}
@@ -199,9 +214,11 @@ static void process_die(Dwarf_Die die)
 	if (name)
 	{
 		si->symbol = name;
+		/*
 		// DEBUG DEBUG DEBUG CODE
 		if (si->symbol == "main")
 			breakpoints<_ARM9, IS_THUMB>::toggle( lopc, 0 );
+		*/
 	}
 
 

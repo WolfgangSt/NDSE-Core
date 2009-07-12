@@ -34,7 +34,7 @@ template <typename T> host_context exception_context<T>::context;
 template <typename T, typename U>
 bool resolve_armpc_from_eip2(unsigned long R15, void *eip)
 {
-	memory_block *fault_page = memory_map<_ARM9>::addr2page(R15);
+	memory_block *fault_page = memory_map<T>::addr2page(R15);
 	compiled_block<U> *block = fault_page->get_jit<T, U>();
 
 	// is eip within the block?
@@ -92,7 +92,8 @@ char* resolve_eip()
 		resolve_armpc_from_eip<T>(eip);
 		return eip;
 	}
-	logging<T>::logf("A HLE or OS call crashed emulation");
+	logging<T>::logf("A HLE or OS call crashed emulation at 0x%p", 
+		(char*)CONTEXT_EIP(exception_context<T>::context.ctx.uc_mcontext));
 
 	// scan till return is found
 	while (p != &processor<T>::context)
@@ -120,6 +121,7 @@ template <typename T> struct runner
 	static breakpoint_defs::break_info *repatch;
 	static const source_set* skipsrc;
 	static breakpoint_defs::stepmode skipmode;
+	static unsigned long skip_instructions;
 	typedef void (*jit_function)();
 
 
@@ -161,6 +163,10 @@ template <typename T> struct runner
 			*bi->pos = bi->original_byte;
 			CONTEXT_EFLAGS(fiber->context.uc_mcontext) |= (1 << 8); // set trap flag
 		}
+
+		CONTEXT_EIP(fiber->context.uc_mcontext) += skip_instructions;
+		skip_instructions = 0;
+
 
 		fiber->do_continue();
 		return true;
@@ -252,6 +258,7 @@ template <typename T> Fiber::fiber_cb* runner<T>::cb;
 template <typename T> breakpoint_defs::break_info* runner<T>::repatch = 0;
 template <typename T> const source_set* runner<T>::skipsrc = 0;
 template <typename T> breakpoint_defs::stepmode runner<T>::skipmode;
+template <typename T> unsigned long runner<T>::skip_instructions = 0;
 
 #endif
 

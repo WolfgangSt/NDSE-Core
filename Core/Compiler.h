@@ -1,6 +1,9 @@
 #ifndef _COMPILER_H_
 #define _COMPILER_H_
 
+// todo: pull all methods to template based versions rather than using 
+// init_cpu / init_mode to gain some more performance
+
 #include <map>
 #include <sstream>
 #include <list>
@@ -26,7 +29,6 @@ inline void DebugBreak_()
 	asm(".byte " TOSTRING(D_DEBUG_BREAK) );
 #endif
 }
-
 
 class compiler
 {
@@ -82,84 +84,118 @@ private:
 	void compile_instruction();
 	void epilogue(char *&mem, size_t &size);
 	std::ostringstream::pos_type tellp();
+
+	void* store32;
+	void* store16;
+	void* store8;
+	void* store32_array;
+	void* load32;
+	void* load16u;
+	void* load16s;
+	void* load8u;
+	void* load32_array;
+	void* pushcallstack;
+	void* popcallstack;
+	void* compile_and_link_branch_a;
+	void* remap_tcm;
+	void* is_priviledged;
+	void* swi;
+	void* debug_magic;
+
 public:
-	template <typename T> void init_mode();
-	template <typename T>
-	static void compile(compiled_block<T> &cb)
+	template <typename U> void init_mode()
+	{
+		INST_BITS = U::INSTRUCTION_SIZE_LG2;
+	}
+	
+	template <typename T> void init_cpu()
+	{
+		store32 = HLE<T>::store32;
+		store16 = HLE<T>::store16;
+		store8 = HLE<T>::store8;
+		store32_array = HLE<T>::store32_array;
+
+		load32 = HLE<T>::load32;
+		load16u = HLE<T>::load16u;
+		load16s = HLE<T>::load16s;
+		load8u = HLE<T>::load8u;
+		load32_array = HLE<T>::load32_array;
+
+		pushcallstack = HLE<T>::pushcallstack;
+		popcallstack = HLE<T>::popcallstack;
+
+		compile_and_link_branch_a = HLE<T>::compile_and_link_branch_a;
+		remap_tcm = HLE<T>::remap_tcm;
+		is_priviledged = HLE<T>::is_priviledged;
+		swi = HLE<T>::swi;
+		debug_magic = HLE<T>::debug_magic;
+	}
+
+
+	template <typename T, typename U>
+	static void compile(compiled_block<U> &cb)
 	{
 		compiler c;
 		disassembler d;
-		typename T::T* p = (typename T::T*)cb.block->mem;
-		c.init_mode<T>();
-
-		//logging<T>::logf("compiling block", cb.block);
+		typename U::T* p = (typename U::T*)cb.block->mem;
+		c.init_mode<U>();
+		c.init_cpu<T>();
 
 		// decode first instruction
-		d.decode<T>( *p++, 0 ); // ,0 => use relative addressing
-		for (int i = 0; i < PAGING::INST<T>::NUM-1; i++ )
+		d.decode<U>( *p++, 0 ); // ,0 => use relative addressing
+		for (int i = 0; i < PAGING::INST<U>::NUM-1; i++ )
 		{
 			c.ctx = d.get_context();
-			d.decode<T>( *p++, 0 ); // decode next
+			d.decode<U>( *p++, 0 ); // decode next
 			cb.remap[i] = (char*)0 + c.tellp();
 			c.inst = i;
 			const disassembler::context &cnext = d.get_context();
-			/*
-			c.lookahead_s = (cnext.flags & 
-				(disassembler::S_BIT | disassembler::S_CONSUMING))
-				== disassembler::S_BIT;
-			if (c.lookahead_s)
-			{
-				if ( (cnext.cond != CONDITION::AL) && (cnext.cond != CONDITION::NV) )
-					c.lookahead_s = 0;
-			}*/
-
 			c.lookahead_s = (cnext.flags & disassembler::S_BIT);
-
 			c.compile_instruction();
 		}
 		// final interation
 		c.ctx = d.get_context();
 		c.lookahead_s = false;
-		cb.remap[PAGING::INST<T>::NUM-1] = (char*)0 + c.tellp();
-		c.inst = PAGING::INST<T>::NUM-1;
+		cb.remap[PAGING::INST<U>::NUM-1] = (char*)0 + c.tellp();
+		c.inst = PAGING::INST<U>::NUM-1;
 		c.compile_instruction();
 
 		cb.remap[0] = 0;
 		c.epilogue(cb.code, cb.code_size);
 
 		// relocate remapping table
-		for (int i = 0; i < PAGING::INST<T>::NUM; i++ )
+		for (int i = 0; i < PAGING::INST<U>::NUM; i++ )
 			cb.remap[i] = cb.code + (size_t)cb.remap[i];
 	}
 };
 
 
 
-template <typename T>
-struct compiled_block: public compiled_block_base<T>
+template <typename U>
+struct compiled_block: public compiled_block_base<U>
 {
 protected:
-	compiled_block() { compiled_block_base<T>::block = 0; }
+	compiled_block() { compiled_block_base<U>::block = 0; }
 public:
 
 	// X86 only! (doesnt matter though since we assemble X86 JIT ;P)
-    template <typename U> void WRITE(char* &p, const T &t)
+    template <typename T> void WRITE(char* &p, const T &t)
 	{
-                *reinterpret_cast<U*>(p) = t;
-                p += sizeof(U);
+                *reinterpret_cast<T*>(p) = t;
+                p += sizeof(T);
 	}
 
 	void emulate(unsigned long subaddr, emulation_context &ctx);
 
 	compiled_block(memory_block *blk)
 	{
-		compiled_block_base<T>::block = blk;
-		compiler::compile( *this );
+		compiled_block_base<U>::block = blk;
+		//compiler::compile( *this ); // callee needs to do this now!
 	}
 
 	~compiled_block()
 	{
-		delete []compiled_block_base<T>::code;
+		delete []compiled_block_base<U>::code;
 	}
 };
 
