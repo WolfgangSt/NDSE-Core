@@ -10,6 +10,7 @@
 #include "CompiledBlock.h"
 #include "jitcode.h"
 #include "SourceInfo.h"
+#include "HLE.h"
 
 #ifdef WIN32
 #define STDCALL __stdcall 
@@ -58,6 +59,7 @@ IMPORT void STDCALL ARM7_GetJITA(unsigned long addr, jit_code *code);
 IMPORT void STDCALL ARM7_GetJITT(unsigned long addr, jit_code *code);
 IMPORT void STDCALL ARM7_SetPC(unsigned long addr);
 IMPORT source_info* STDCALL ARM7_SourceLine(unsigned long addr, int idx);
+IMPORT callstack_context* STDCALL ARM7_Callstack();
 
 IMPORT memory_block* STDCALL ARM9_GetPage(unsigned long addr);
 IMPORT const char* STDCALL ARM9_DisassembleA(unsigned long op, unsigned long addr);
@@ -77,7 +79,7 @@ IMPORT void STDCALL ARM9_GetJITA(unsigned long addr, jit_code *code);
 IMPORT void STDCALL ARM9_GetJITT(unsigned long addr, jit_code *code);
 IMPORT void STDCALL ARM9_SetPC(unsigned long addr);
 IMPORT source_info* STDCALL ARM9_SourceLine(unsigned long addr, int idx);
-
+IMPORT callstack_context* STDCALL ARM9_Callstack();
 
 
 IMPORT bool STDCALL UTIL_LoadFile(const char *filename, util::load_result *result, util::load_hint lh);

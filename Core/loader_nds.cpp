@@ -22,7 +22,7 @@ struct card_rom_region
 	unsigned long length;
 };
 
-//#include <pshpack1.h>
+#include <pshpack1.h>
 struct ndsheader_main
 {
 	char game_name[12];
@@ -81,8 +81,7 @@ struct ndsheader
 	ndsheader_main main;
 	ndsheader_sub sub;
 };
-
-//#include <poppack.h>
+#include <poppack.h>
 
 
 struct max_size
@@ -150,6 +149,8 @@ struct stream_nds
 bool loader_nds::load(int fd, util::load_result &res, util::load_hint /*lh*/)
 {
 	ndsheader hdr;
+
+	// ERR SHIT sizeof(hdr aint 512 ....)
 	assert(sizeof(hdr) == 512);
 	if (read(fd, &hdr, sizeof(hdr)) != sizeof(hdr))
 		return false;

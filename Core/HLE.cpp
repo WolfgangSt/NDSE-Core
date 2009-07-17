@@ -183,6 +183,8 @@ char* FASTCALL_IMPL(HLE<T>::compile_and_link_branch_a_real(unsigned long addr))
 {
 	// resolve destination
 	memory_block *b = memory_map<T>::addr2page(addr);
+	processor<T>::last_page = b;
+
 	if (b->flags & (memory_block::PAGE_EXECPROT))
 		invalid_branch(addr);
 	// recompile if dirty
@@ -486,8 +488,10 @@ public:
 
 template <typename T> void HLE<T>::IntrWait()
 {
-	//logging<_ARM9>::logf("SWI 4h [IntrWait] called (noimpl)");
-	QPseudoThread::do_sleep(20);
+	// nospam...
+	logging<_ARM9>::logf("SWI 4h [IntrWait] called (noimpl)");
+	//QPseudoThread::do_sleep(10);
+	QPseudoThread::yieldCurrentThread();
 	//DebugBreak_(); // not yet supported
 }
 

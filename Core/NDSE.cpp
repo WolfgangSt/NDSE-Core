@@ -298,6 +298,13 @@ void STDCALL DEFAULT_Log(log_callback cb) { logging<_DEFAULT>::cb = cb; }
 void STDCALL ARM7_Log(log_callback cb) { logging<_ARM7>::cb = cb; }
 void STDCALL ARM9_Log(log_callback cb) { logging<_ARM9>::cb = cb; }
 
+
+callstack_context* STDCALL ARM7_Callstack()
+{
+	return &callstack_tracer<_ARM7>::ctx;
+}
+
+
 callstack_context* STDCALL ARM9_Callstack()
 {
 	return &callstack_tracer<_ARM9>::ctx;
@@ -391,9 +398,12 @@ void STDCALL ARM9_SetPC(unsigned long addr)
 	return runner<_ARM9>::jit_rebranch(addr);
 }
 
-source_info* STDCALL ARM7_SourceLine(unsigned long /*addr*/, int /*idx*/)
+source_info* STDCALL ARM7_SourceLine(unsigned long addr, int idx)
 {
-	return 0; // not differentiated yet for ARM7/9
+	// not differentiated yet for ARM7/9
+	// source debugging infos are SHARED for the moment ...
+	return ARM9_SourceLine(addr, idx);
+	//return 0;
 }
 
 source_info* STDCALL ARM9_SourceLine(unsigned long addr, int idx)

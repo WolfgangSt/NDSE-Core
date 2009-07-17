@@ -33,6 +33,11 @@ EXPORTS
 	ARM7_ToggleBreakpointT
 	ARM7_GetBreakpointA
 	ARM7_GetBreakpointT
+	ARM7_GetJITA
+	ARM7_GetJITT
+	ARM7_SetPC
+	ARM7_SourceLine
+	ARM7_Callstack
 
 	ARM9_Stream
 	ARM9_DisassembleA
@@ -48,8 +53,10 @@ EXPORTS
 	ARM9_ToggleBreakpointT
 	ARM9_GetBreakpointA
 	ARM9_GetBreakpointT
+	ARM9_GetJITA
+	ARM9_GetJITT
+	ARM9_SetPC
 	ARM9_SourceLine
-	
 	ARM9_Callstack
 
 	DEBUGGER_GetSymbol

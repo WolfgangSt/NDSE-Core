@@ -54,6 +54,7 @@ struct memory
 	static REGISTERS7_1                    registers7_1; // 0x04000000 - 0x04002000
 
 
+	// this actually seems to be 4kb shared work ram?!
 	static memory_region< PAGING::B<4096> > cart_header; // 0x027FF000
 
 	enum { NUM_REGIONS = 27 };

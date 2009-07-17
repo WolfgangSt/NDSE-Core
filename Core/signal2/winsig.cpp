@@ -47,7 +47,7 @@ class WinFiber: public Fiber
 {
 private:
 	HANDLE cont;
-	bool running;
+	volatile bool running;
 	fiber_cb *cb;
 	ucontext_t ctx;
 
@@ -74,14 +74,18 @@ private:
 
 	void entry()
 	{
-		__try
-		{
-			RaiseException(0, 0, 0, 0);
-		} __except(handle_failure(GetExceptionInformation()), EXCEPTION_CONTINUE_EXECUTION)
-		{
-		}
 		for (;;)
-			do_callback();
+		{
+			__try
+			{
+				RaiseException(0, 0, 0, 0);
+			} __except(handle_failure(GetExceptionInformation()), EXCEPTION_CONTINUE_EXECUTION)
+			{
+			}
+			// shouldnt reach here might be unstable otherwise...
+			std::cout << "Fiber crashed. Please restart." << std::endl;
+		}
+		assert(0);
 	}
 public:
 	WinFiber(size_t stacksize, fiber_cb cb) : cb(cb)
@@ -91,6 +95,8 @@ public:
 		cont = CreateEvent(0, FALSE, FALSE, 0);
 		HANDLE h = CreateThread(0, stacksize, entry_, this, 0, 0);
 		SetThreadPriority( h, THREAD_PRIORITY_BELOW_NORMAL );
+		while (running)
+			SwitchToThread();
 	}
 
 	void do_continue()

@@ -115,9 +115,7 @@ template <> void memory::initializer<_ARM9>::initialize_mapping()
 	memory_map<_ARM9>::map_region( &oam_ab,        PAGING::PAGES<0x07000000>::PAGE );
 	memory_map<_ARM9>::map_region( &palettes,      PAGING::PAGES<0x05000000>::PAGE );
 	memory_map<_ARM9>::map_region( &registers9_1,  PAGING::PAGES<0x04000000>::PAGE );
-			
-			
-	//memory_map<_ARM9>::map_region( &data_tcm,      PAGING::REGION(0x027E0000, 0x02800000) );
+
 	memory_map<_ARM9>::map_region( &ram,           PAGING::REGION(0x02000000, 0x02000000 + ram.SIZE) );
 	//memory_map<_ARM9>::map_region( &ram,           PAGING::REGION(0x02400000, 0x02400000 + ram.SIZE) );
 	memory_map<_ARM9>::map_region( &cart_header,   PAGING::PAGES<0x27FF000>::PAGE );

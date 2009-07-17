@@ -26,6 +26,13 @@
 // A second problem is 2 instruction branches in thumb mode beeing on different
 // pages .
 
+// Critical bugs: many ops screw when processing R15
+// read accesses are out of sync, write accesses need branch
+
+// generic_loadstore_postupdate_imm can be optimized, see STR_IPW
+
+
+
 /*
 [23:49] <sgstair> arm7 docs show STM writes out the base at the end of the second cycle of the instruction, and a LDM always overwrites the updated base if the base is in the list.
 [23:50] <sgstair> so if the base is the lowest register in the list, STM writes the unchanged base, otherwise it writes the final base.
@@ -74,9 +81,7 @@ template <typename T> void write(std::ostream &s, const T &t)
 
 void compiler::load_shifter_imm()
 {
-	break_if_pc(ctx.rm);
-	s << "\x8B\x45" << (char)OFFSET(regs[ctx.rm]); // mov eax, [ebp+rm]
-	//a<MOV>( s, EAX, EBP, OFFSET(regs[ctx.rm]) );
+	load_eax_reg_or_pc(ctx.rm);
 	switch (ctx.shift)
 	{
 	case SHIFT::LSL:
@@ -223,6 +228,9 @@ void compiler::push_multiple(int num)
 }
 
 // loads a register content or PC relative address to ecx
+// (+2 instructions)
+// fix the +2 at callees in future!
+// this is intended to do only +1 ...
 void compiler::load_ecx_reg_or_pc(int reg, unsigned long offset)
 {
 	if (reg != 0xF)
@@ -236,7 +244,24 @@ void compiler::load_ecx_reg_or_pc(int reg, unsigned long offset)
 		offset += ((inst+2) << INST_BITS) & ~3;
 	}
 	add_ecx(offset);
-	
+}
+
+
+// loads a register content or PC relative address to eax
+// (+1 instruction)
+void compiler::load_eax_reg_or_pc(int reg, unsigned long offset)
+{
+	if (reg != 0xF)
+	{
+		s << "\x8B\x45" << (char)OFFSET(regs[reg]);      // mov eax, [ebp+rn]
+	} else
+	{
+		// ip relative
+		s << "\x8B\x45" << (char)OFFSET(regs[ctx.rn]);    // mov eax, [ebp+rn]
+		s << "\x25"; write( s, (unsigned long)(~PAGING::ADDRESS_MASK) ); // and eax, ~PAGING::ADDR_MASK
+		offset += ((inst+2) << INST_BITS) & ~3;
+	}
+	add_eax(offset);
 }
 
 
@@ -295,6 +320,14 @@ void compiler::add_ecx(unsigned long imm)
 	}
 }
 
+void compiler::add_eax(unsigned long imm)
+{
+	if (imm)
+	{
+		s << "\x05"; write( s, imm ); // add eax, imm
+	}
+}
+
 void compiler::generic_store()
 {
 	break_if_pc(ctx.rd);                 // todo handle rd = PC
@@ -345,7 +378,6 @@ void compiler::generic_loadstore_shift()
 
 void compiler::generic_load()
 {
-	break_if_pc(ctx.rd);                  // todo handle rd = PC
 	load_ecx_reg_or_pc(ctx.rn, ctx.imm);  // ecx = reg[rn] + imm
 }
 
@@ -357,6 +389,7 @@ void compiler::generic_load_post()
 
 void compiler::generic_load_r()
 {
+	break_if_pc(ctx.rd);                  // todo handle rd = PC
 	generic_load();
 	generic_loadstore_shift();
 }
@@ -441,6 +474,18 @@ void compiler::add_ecx_bpre()
 	s << "\xC7\x45" << (char)OFFSET(bpre); write( s, 0 ); // mov [ebp+bpre], 0
 }
 
+// mov [ebp+rd], eax
+// branch when rd = R15
+void compiler::store_rd_eax()
+{
+	s << "\x89\x45" << (char)OFFSET(regs[ctx.rd]);  // mov [ebp+rd], eax
+	if (ctx.rd == 15)
+	{
+		s << "\x8B\xC8"; // mov ecx, eax
+		JMPP(compile_and_link_branch_a)
+	}
+}
+
 void compiler::compile_instruction()
 {
 	bool patch_jump = false;
@@ -499,6 +544,8 @@ void compiler::compile_instruction()
 		break;
 
 	case INST::MOV_R:
+
+		// check for mov r12, r12 (debug magic)
 		if ((ctx.rd == ctx.rm) && (ctx.imm == 0))
 		{
 			if (ctx.rd == 12)
@@ -511,7 +558,6 @@ void compiler::compile_instruction()
 				s << "\x90"; // << DEBUG_BREAK;
 			break;
 		}
-
 		load_shifter_imm();
 		if (ctx.rd == 0xF)
 		{
@@ -567,15 +613,27 @@ void compiler::compile_instruction()
 		if (ctx.flags & disassembler::S_BIT)
 			store_flags();
 		break;
+
 	case INST::STR_I:
 		generic_store();
 		CALLP(store32)
 		generic_loadstore_postupdate_imm();		
 		break;
-
+	/*
+	case INST::STR_IW:
+		s << "\x90";
+		s << DEBUG_BREAK;
+		break;
+	*/
 	case INST::STRX_IP:
 		generic_store_p();
 		generic_store_x();
+		break;
+	case INST::STR_IPW:
+		generic_store_p();
+		//s << "\x89\x4D" << (char)OFFSET(regs[ctx.rn]); // mov [ebp+rn], ecx
+		CALLP(store32)
+		generic_loadstore_postupdate_imm();	
 		break;
 	case INST::STRX_RP:
 		generic_store_r();
@@ -606,19 +664,20 @@ void compiler::compile_instruction()
 		CALLP(load32)
 		s << "\x89\x45" << (char)OFFSET(regs[ctx.rd]);  // mov [ebp+rd], eax
 		break;
-
 	// Pre index loads
 	case INST::LDR_IP:
 		generic_load();
 		CALLP(load32)
-		s << "\x89\x45" << (char)OFFSET(regs[ctx.rd]);  // mov [ebp+rd], eax
+		//break_if_pc(ctx.rd);                  // todo handle rd = PC
+		store_rd_eax();
 		break;
 	case INST::LDR_RP:
 		generic_load_r();
 		CALLP(load32) 
 		s << "\x89\x45" << (char)OFFSET(regs[ctx.rd]);  // mov [ebp+rd], eax
 		break;
-	case INST::LDRB_IP: 
+	case INST::LDRB_IP:
+		break_if_pc(ctx.rd);                  // todo handle rd = PC
 		generic_load();
 		CALLP(load8u)
 		s << "\x89\x45" << (char)OFFSET(regs[ctx.rd]);  // mov [ebp+rd], eax
@@ -629,6 +688,7 @@ void compiler::compile_instruction()
 		s << "\x89\x45" << (char)OFFSET(regs[ctx.rd]);  // mov [ebp+rd], eax
 		break;
 	case INST::LDRX_IP:
+		break_if_pc(ctx.rd);                  // todo handle rd = PC
 		generic_load();
 		generic_load_x();
 		s << "\x89\x45" << (char)OFFSET(regs[ctx.rd]);  // mov [ebp+rd], eax
@@ -850,6 +910,8 @@ void compiler::compile_instruction()
 
 
 	case INST::BIC_I:
+		break_if_pc(ctx.rn);
+		break_if_pc(ctx.rd);
 		s << "\x8B\x45" << (char)OFFSET(regs[ctx.rn]); // mov eax,[ebp+Rn]
 		s << '\x25'; write(s, ~ctx.imm);               // and eax, ~imm
 		s << "\x89\x45" << (char)OFFSET(regs[ctx.rd]); // mov [ebp+rd], eax
@@ -858,6 +920,8 @@ void compiler::compile_instruction()
 		break;
 
 	case INST::ORR_I: // Rd = Rn | imm
+		break_if_pc(ctx.rn);
+		break_if_pc(ctx.rd);
 		if (ctx.rn == ctx.rd)
 		{
 			s << "\x81\x4D" << (char)OFFSET(regs[ctx.rn]); // or [ebp+rn],
@@ -873,6 +937,8 @@ void compiler::compile_instruction()
 		break;
 
 	case INST::AND_I: // Rd = Rn & imm
+		break_if_pc(ctx.rn);
+		break_if_pc(ctx.rd);
 		if (ctx.rn == ctx.rd)
 		{
 			s << "\x81\x65" << (char)OFFSET(regs[ctx.rn]); // and [ebp+rn],
@@ -888,17 +954,16 @@ void compiler::compile_instruction()
 		break;
 
 	case INST::ADD_I: // Rd = Rn + imm
+		break_if_pc(ctx.rd);
 		if (ctx.rn == ctx.rd)
 		{
+			break_if_pc(ctx.rn);
 			s << "\x81\x45" << (char)OFFSET(regs[ctx.rn]); // add [ebp+rn],
 			write( s, ctx.imm );                           // imm
 		} else
 		{
-			s << "\x8B\x45" << (char)OFFSET(regs[ctx.rn]); // mov eax, [ebp+rn]
-			// TODO: optimize (can be ommited if imm == 0 and lookahead_s is set)
-			// can be inc/dec when imm = 0 or FFFFFFFF
-			s << "\x05"; write(s, ctx.imm );               // add eax, imm
-			s << "\x89\x45" << (char)OFFSET(regs[ctx.rd]); // mov [ebp+rd], eax
+			load_ecx_reg_or_pc(ctx.rn, ctx.imm);
+			s << "\x89\x4D" << (char)OFFSET(regs[ctx.rd]); // mov [ebp+rd], ecx
 		}
 		if (ctx.flags & disassembler::S_BIT)
 			store_flags();
@@ -940,15 +1005,16 @@ void compiler::compile_instruction()
 		}
 
 	case INST::SUB_I: // Rd = Rn - imm
+		break_if_pc(ctx.rd);
 		if (ctx.rn == ctx.rd)
 		{
+			break_if_pc(ctx.rn);
 			s << "\x81\x6D" << (char)OFFSET(regs[ctx.rn]); // sub [ebp+rn],
 			write( s, ctx.imm );                           // imm
 		} else
 		{
-			s << "\x8B\x45" << (char)OFFSET(regs[ctx.rn]); // mov eax, [ebp+rn]
-			s << "\x2D"; write(s, ctx.imm );               // sub eax, imm
-			s << "\x89\x45" << (char)OFFSET(regs[ctx.rd]); // mov [ebp+rd], eax
+			load_ecx_reg_or_pc(ctx.rn, -ctx.imm);
+			s << "\x89\x4D" << (char)OFFSET(regs[ctx.rd]); // mov [ebp+rd], ecx
 		}
 		if (ctx.flags & disassembler::S_BIT)
 			store_flags();
@@ -991,6 +1057,8 @@ void compiler::compile_instruction()
 		}
 
 	case INST::RSB_I:
+		break_if_pc(ctx.rn);
+		break_if_pc(ctx.rd);
 		if (ctx.rn == ctx.rd)
 		{
 			if (ctx.imm == 0)
@@ -1015,6 +1083,14 @@ void compiler::compile_instruction()
 		}
 		s << '\x90' << DEBUG_BREAK;
 		break;
+	case INST::RSB_R:
+		load_shifter_imm();
+		s << "\x2B\x45" << (char)OFFSET(regs[ctx.rn]); // sub eax, [ebp+rn]
+		s << "\x89\x45" << (char)OFFSET(regs[ctx.rd]); // mov [ebp+rd], eax
+		if (ctx.flags & disassembler::S_BIT)
+			store_flags();
+		break;
+
 
 	case INST::ORR_R: // Rd = Rn | shifter_imm
 		load_shifter_imm();
@@ -1024,6 +1100,8 @@ void compiler::compile_instruction()
 			store_flags();
 		break;
 	case INST::CLZ:
+		break_if_pc(ctx.rm);
+		break_if_pc(ctx.rd);
 		
 		s << DEBUG_BREAK;
 		s << "\x8B\x45" << (char)OFFSET(regs[ctx.rm]); // mov eax, [ebp+Rm]
@@ -1038,8 +1116,12 @@ void compiler::compile_instruction()
 
 
 	case INST::MUL_R: // Rd = Rm * Rs (Rd must not be Rm)
+		break_if_pc(ctx.rm);
+		break_if_pc(ctx.rs);
+		break_if_pc(ctx.rd);
+
 		s << "\x33\xD2"; // xor edx, edx
-		s << "\x8B\x45" << (char)OFFSET(regs[ctx.rm]); // mov eax, [ebp+rd]
+		s << "\x8B\x45" << (char)OFFSET(regs[ctx.rm]); // mov eax, [ebp+rm]
 		s << "\xF7\x65" << (char)OFFSET(regs[ctx.rs]); // mul [ebp+rs]
 		s << "\x89\x45" << (char)OFFSET(regs[ctx.rd]); // mov [ebp+rd], eax
 		if (ctx.flags & disassembler::S_BIT)
@@ -1047,12 +1129,15 @@ void compiler::compile_instruction()
 		break;
 
 	case INST::MRS_CPSR:
+		break_if_pc(ctx.rd);
 		s << "\x8B\x45" << (char)OFFSET(cpsr); // mov eax, [ebp+cpsr]
 		s << "\x89\x45" << (char)OFFSET(regs[ctx.rd]); // mov [ebp+rd], eax
 		break;
 
 	case INST::MSR_CPSR_R:
 		// mask = Rn
+		break_if_pc(ctx.rm);
+		break_if_pc(ctx.rn);
 
 		// todo: priviledge mode check depending on mask
 
@@ -1074,6 +1159,7 @@ void compiler::compile_instruction()
 		}
 		break;
 	case INST::TST_I: // TST Rn, imm
+		break_if_pc(ctx.rn);
 		s << "\xF7\x45" << (char)OFFSET(regs[ctx.rn]); // test [ebp+Rm],
 		write( s, ctx.imm );                           // imm
 		store_flags();
@@ -1082,6 +1168,19 @@ void compiler::compile_instruction()
 		break_if_pc(ctx.rn);
 		load_shifter_imm(); // eax = [ebp+Rm] x shifter
 		s << "\x85\x45" << (char)OFFSET(regs[ctx.rn]); // test [ebp+Rd], eax
+		store_flags();		
+		break;
+
+	case INST::TEQ_I: // TEQ Rn, imm
+		break_if_pc(ctx.rn);
+		s << "\x8B\x45" << (char)OFFSET(regs[ctx.rm]); // mov eax, [ebp+rm]
+		s << '\x35'; write( s, ctx.imm );              // xor eax, imm
+		store_flags();
+		break;
+	case INST::TEQ_R:
+		break_if_pc(ctx.rn);
+		load_shifter_imm(); // eax = [ebp+Rm] x shifter
+		s << "\x33\x45" << (char)OFFSET(regs[ctx.rn]); // xor eax, [ebp+Rd]
 		store_flags();		
 		break;
 
@@ -1098,6 +1197,7 @@ void compiler::compile_instruction()
 		store_flags();
 		break;
 
+	case INST::STM:
 	case INST::STM_W:
 		{
 			unsigned long num, highest, lowest;
@@ -1161,8 +1261,11 @@ void compiler::compile_instruction()
 
 			// w-bit is set, update destination register
 			// but only when it was not in the loaded list!
+			if (ctx.instruction == INST::STM_W)
+			{
 			//if (!(ctx.imm & (1 << ctx.rn)))
 				update_dest(num);
+			}
 		}
 		break;
 	case INST::LDM:

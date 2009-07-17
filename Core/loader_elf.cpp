@@ -470,7 +470,8 @@ static bool load_debug(Elf *elf)
 	Dwarf_Debug dbg;
 
 	// wipe current debug infos
-	source_debug::clear();
+	// (would wipe arm7 when loaded first :()
+	//source_debug::clear();
 
 	if (dwarf_elf_init( elf, DW_DLC_READ, 0, 0, &dbg, &err ) != DW_DLV_OK)
 		return false;

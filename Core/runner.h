@@ -31,6 +31,11 @@ template <typename T> host_context exception_context<T>::context;
 // block R15 points at or till reaching the run/continuation call
 
 
+////////////////////////////////////////////////////////////////////////////////
+// Obsolete Version -- START
+// this is not gcc compatible anyway
+// remove this in next commit
+
 template <typename T, typename U>
 bool resolve_armpc_from_eip2(unsigned long R15, void *eip)
 {
@@ -66,6 +71,7 @@ bool resolve_armpc_from_eip2(unsigned long R15, void *eip)
 template <typename T>
 bool resolve_armpc_from_eip(void *eip)
 {
+	// unreliable approach, guess page from R15
 	unsigned long R15 = processor<T>::context.regs[15];
 	if (R15 & 1)
 		return resolve_armpc_from_eip2<T, IS_THUMB>(R15, eip);
@@ -113,6 +119,97 @@ char* resolve_eip()
 #pragma warning(pop)
 }
 
+// Obsolete Version -- END
+////////////////////////////////////////////////////////////////////////////////
+
+// use processor::last_page to trace back
+// for current issues regarding this see processor.h
+// also needs R15 to be up to date otherwise the crash 
+// address wont be resolved for the right page!
+
+// move to pseudo struct to make it gcc compatible
+template <typename T, typename U>
+void update_breakinfo(char *eip, const compiled_block<U> *block)
+{
+	unsigned long R15 = processor<T>::context.regs[15];
+	// find the JIT instruction of the crash
+	int i = 0;
+	while ((eip >= block->remap[i+1]) && (i < block->REMAPS-1))
+		i++;
+	unsigned long arm_pc = (R15 & ~PAGING::ADDRESS_MASK) + (i << U::INSTRUCTION_SIZE_LG2);
+
+	// discover the JIT subinstruction using distorm through the breakpoint interface
+	breakpoint_defs::break_data bd;
+	bd.addr = arm_pc;
+	breakpoints<T, U>::disassemble_breakdata(&bd);
+	
+	unsigned long arm_jit = 0;
+	while ((eip >= bd.jit_line[arm_jit+1].pos) && (arm_jit < bd.jit_instructions-1))
+		arm_jit++;
+
+	exception_context<T>::context.addr_resolved = true;
+	exception_context<T>::context.addr = arm_pc;
+	exception_context<T>::context.subaddr = arm_jit;
+}
+
+template <typename T>
+char* resolve_eip_v2()
+{
+	memory_block *fault_page = processor<T>::last_page;
+	const compiled_block<IS_ARM> *ba = fault_page->get_jit<T, IS_ARM>();
+	const compiled_block<IS_THUMB> *bt = fault_page->get_jit<T, IS_THUMB>();
+	const char* ba1;// = ba->code;
+	const char* ba2;// = ba->code + ba->code_size;
+	const char* bt1;// = bt->code;
+	const char* bt2;// = bt->code + bt->code_size;
+
+	if (ba)
+	{
+		ba1 = ba->code;
+		ba2 = ba->code + ba->code_size;;
+	} else
+	{
+		ba1 = 0;
+		ba2 = 0;
+	}
+
+	if (bt)
+	{
+		bt1 = bt->code;;
+		bt2 = bt->code + bt->code_size;
+	} else
+	{
+		bt1 = 0;
+		bt2 = 0;
+	}
+
+	exception_context<T>::context.addr_resolved = false;
+	char *ip = (char*)UlongToPtr(
+		CONTEXT_EIP(exception_context<T>::context.ctx.uc_mcontext));
+	char **p = (char**)UlongToPtr(
+		CONTEXT_ESP(exception_context<T>::context.ctx.uc_mcontext));
+
+	for (;;)
+	{
+		if (ip >= ba1 && ip < ba2)
+		{
+			// resolved!
+			update_breakinfo<T, IS_ARM>(ip, ba);
+			return ip;
+		}
+		if (ip >= bt1 && ip < bt2)
+		{
+			// resolved!
+			update_breakinfo<T, IS_THUMB>(ip, bt);
+			return ip;
+		}
+		// ip was wrong try stackwalk
+		if ( !check_mem_access( p, sizeof(char*)) )
+			return 0;
+		ip = *p++;
+	}
+}
+
 template <typename T> struct runner
 {
 	enum { STACK_SIZE = 4096*64 }; // 64K reserved for JIT + HLE funcs
@@ -143,6 +240,21 @@ template <typename T> struct runner
 		//FlushInstructionCache( GetCurrentProcess(), start, code->code_size - (start - code->code) );
 		cacheflush( start, (int)(code->code_size - (start - code->code)), ICACHE );
 		return (jit_function)start;
+	}
+
+	static void jit_break()
+	{
+		// set a breakpoint at each ARM line
+		// warning this is not thredsafe in regards to normal breakpoints!
+		// the executing fiber is also required to be in a sleeping state
+		// before execution
+		// an unavoidable race condition would occur when the fiber
+		// broke within a branching instruction to a different page
+		//
+		// better approach: 
+		// 1. break fiber
+		// 2. resolve arm instruction through stackwalk + processor::last_page
+		// 3. use single step into arm breakpoint
 	}
 
 	static bool jit_continue()
@@ -185,6 +297,8 @@ template <typename T> struct runner
 
 		// set EIP and R15 according to addr
 		processor<T>::context.regs[15] = addr;
+		// could safe the next call as evaluated within get_entry() above
+		processor<T>::last_page = memory_map<T>::addr2page( addr );
 		CONTEXT_EIP(fiber->context.uc_mcontext) = PtrToUlong(jit_code);
 		CONTEXT_EBP(fiber->context.uc_mcontext) = PtrToUlong(&processor<T>::context);
 	}
@@ -203,7 +317,7 @@ template <typename T> struct runner
 
 		exception_context<T>::context.ctx = f->context;
 		if (initialized)
-			breakpoints_base<T>::trigger( resolve_eip<T>() );
+			breakpoints_base<T>::trigger( resolve_eip_v2<T>() );
 		else initialized = true;
 		if (skipsrc)
 			if (skipcb())

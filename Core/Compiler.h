@@ -51,14 +51,17 @@ private:
 	void load_ecx_single();
 	void push_multiple(int num);
 	void load_ecx_reg_or_pc(int reg, unsigned long offset = 0);
+	void load_eax_reg_or_pc(int reg, unsigned long offset = 0);
 
 	void break_if_pc(int reg);
 	void break_if_thumb();
 	
 	void load_edx_ecx_or_reg(int r1, int r2);
 	void load_eax_ecx_or_reg(int r1, int r2);
+	void store_rd_eax();
 	void shiftop_eax_ecx();
 	void add_ecx(unsigned long imm);
+	void add_eax(unsigned long imm);
 	void generic_store();
 	void generic_store_p();
 	void generic_store_r();

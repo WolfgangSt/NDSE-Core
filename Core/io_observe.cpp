@@ -293,6 +293,12 @@ void fake_ipc_sync()
 	*pfifo = (*pfifo & ~0xF) | (((*pfifo >> 8) + 1) & 0xF);
 }
 
+unsigned long ipc_swizzle(unsigned long current, unsigned long other)
+{
+	// copy over bit 8-15 to 0-7
+	return (current & ~0xF) | ((other >> 8) & 0xF);
+}
+
 
 void io_observer::process9()
 {
@@ -354,13 +360,16 @@ void io_observer::process9()
 				start_dma3();
 				break;
 			case 0x180:
-				name = "IPC Synchronize Register";
-				// sync to arm7 IPC
-				// = bmem[j]
-				//*(unsigned short*)(memory::registers7_1.start->mem + 0x180) =
-				//*(unsigned short*)(memory::registers9_1.start->mem + 0x180);
-				fake_ipc_sync();
-				break;
+				{
+					name = "IPC Synchronize Register";
+					// sync to arm7 IPC
+					unsigned long *cur = (unsigned long*)(memory::registers7_1.start->mem + 0x180);
+					unsigned long ipc = ipc_swizzle(*cur, bmem[j]);
+					*cur = ipc;
+					reactor_data7[0][0x180 >> 2] = ipc;
+					//fake_ipc_sync();
+					break;
+				}
 			case 0x184:
 				name = "IPC Fifo Control Register";
 				break;
@@ -445,6 +454,19 @@ void io_observer::process7()
 			// 0x1C0 = SPICNT
 			}
 			*/
+			switch (addr)
+			{
+			case 0x180:
+				{
+					name = "IPC Synchronize Register";
+					// sync to arm9 IPC
+					unsigned long *cur = (unsigned long*)(memory::registers9_1.start->mem + 0x180);
+					unsigned long ipc = ipc_swizzle(*cur, bmem[j]);
+					*cur = ipc;
+					reactor_data9[0][0x180 >> 2] = ipc;
+					break;
+				}
+			}
 			
 			logging<_DEFAULT>::logf("IO reactor thread detected change at ARM7:%08X from %08X to %08X [%s]", 
 				addr, p[j], bmem[j], name);
