@@ -23,109 +23,18 @@ template <typename T> host_context exception_context<T>::context;
 // This definitly needs some more reliable way
 // i.) currently having issues when R15 is out of date
 //     (crash within R15 writing instruction after write but before jump)
-// ii.) ebp unwinding will only work in debug mode when stack frames are 
-//      enabled. Release build omits them for performance
 //
-// A possible (not really nice solution either though) would be using
-// TF for single stepping out of the HLE till reaching either the JIT
-// block R15 points at or till reaching the run/continuation call
-
-
-////////////////////////////////////////////////////////////////////////////////
-// Obsolete Version -- START
-// this is not gcc compatible anyway
-// remove this in next commit
-
-template <typename T, typename U>
-bool resolve_armpc_from_eip2(unsigned long R15, void *eip)
-{
-	memory_block *fault_page = memory_map<T>::addr2page(R15);
-	compiled_block<U> *block = fault_page->get_jit<T, U>();
-
-	// is eip within the block?
-	if ((eip < block->code) || eip >= block->code + block->code_size)
-		return false;
-
-	// find the JIT instruction of the crash
-	int i = 0;
-	while ((eip >= block->remap[i+1]) && (i < block->REMAPS-1))
-		i++;
-	unsigned long arm_pc = (R15 & ~PAGING::ADDRESS_MASK) + (i << U::INSTRUCTION_SIZE_LG2);
-
-	// discover the JIT subinstruction using distorm through the breakpoint interface
-	breakpoint_defs::break_data bd;
-	bd.addr = arm_pc;
-	breakpoints<T, U>::disassemble_breakdata(&bd);
-	
-	unsigned long arm_jit = 0;
-	while ((eip >= bd.jit_line[arm_jit+1].pos) && (arm_jit < bd.jit_instructions-1))
-		arm_jit++;
-
-	exception_context<T>::context.addr_resolved = true;
-	exception_context<T>::context.addr = arm_pc;
-	exception_context<T>::context.subaddr = arm_jit;
-	return true;
-}
-
-
-template <typename T>
-bool resolve_armpc_from_eip(void *eip)
-{
-	// unreliable approach, guess page from R15
-	unsigned long R15 = processor<T>::context.regs[15];
-	if (R15 & 1)
-		return resolve_armpc_from_eip2<T, IS_THUMB>(R15, eip);
-	else
-		return resolve_armpc_from_eip2<T, IS_ARM>(R15, eip);
-}
-
-template <typename T>
-char* resolve_eip()
-{
-#pragma warning(push)
-#pragma warning(disable: 4311)
-#pragma warning(disable: 4312)
-
-	void *p = (void*)CONTEXT_EBP(exception_context<T>::context.ctx.uc_mcontext);
-	void **lastp = 0;
-	exception_context<T>::context.addr_resolved = false;
-
-	// if ebp still is the context base we are either in emu JIT
-	// or in a HLE that hasnt a stackframe (handle that case somehow)
-	if (p == &processor<T>::context)
-	{
-		char *eip = (char*)CONTEXT_EIP(exception_context<T>::context.ctx.uc_mcontext);
-		resolve_armpc_from_eip<T>(eip);
-		return eip;
-	}
-	logging<T>::logf("A HLE or OS call crashed emulation at 0x%p", 
-		(char*)CONTEXT_EIP(exception_context<T>::context.ctx.uc_mcontext));
-
-	// scan till return is found
-	while (p != &processor<T>::context)
-	{
-		lastp = (void**)p;
-		if ( !check_mem_access( lastp, 2*sizeof(void*)) )
-			return (char*)CONTEXT_EIP(exception_context<T>::context.ctx.uc_mcontext); // ebp has been screwed up
-		p = *lastp;
-	}
-	void *eip = lastp[1];
-	CONTEXT_EIP(exception_context<T>::context.ctx.uc_mcontext) = (unsigned long)eip;
-
-	// finally try to retrieve the ARM address of the crash assuming it happened within
-	// the block R15 points to
-	resolve_armpc_from_eip<T>(eip);
-	return (char*)eip;
-#pragma warning(pop)
-}
-
-// Obsolete Version -- END
-////////////////////////////////////////////////////////////////////////////////
-
 // use processor::last_page to trace back
 // for current issues regarding this see processor.h
 // also needs R15 to be up to date otherwise the crash 
 // address wont be resolved for the right page!
+// for catching failed branches R15 could be backed up, too
+//
+// the current interrupt system uses an imprecise interrupt
+// schema in that it just switches context whenever triggered
+// and runs into a safe state as recompilation of the paged
+// stopped within occurs.
+// could be made precides by doing the safe run before dispatch
 
 // move to pseudo struct to make it gcc compatible
 template <typename T, typename U>
@@ -213,13 +122,14 @@ char* resolve_eip_v2()
 template <typename T> struct runner
 {
 	enum { STACK_SIZE = 4096*64 }; // 64K reserved for JIT + HLE funcs
+	typedef void (*jit_function)();
+
 	static Fiber *fiber;
 	static Fiber::fiber_cb *cb;
 	static breakpoint_defs::break_info *repatch;
 	static const source_set* skipsrc;
 	static breakpoint_defs::stepmode skipmode;
 	static unsigned long skip_instructions;
-	typedef void (*jit_function)();
 
 
 

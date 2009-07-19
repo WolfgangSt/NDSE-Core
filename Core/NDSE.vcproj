@@ -443,6 +443,14 @@
 					</File>
 				</Filter>
 			</Filter>
+			<Filter
+				Name="Interrupt"
+				>
+				<File
+					RelativePath=".\Interrupt.h"
+					>
+				</File>
+			</Filter>
 		</Filter>
 		<Filter
 			Name="Debugging"
@@ -495,18 +503,6 @@
 					>
 				</File>
 			</Filter>
-		</Filter>
-		<Filter
-			Name="Interrupt"
-			>
-			<File
-				RelativePath=".\Interrupt.cpp"
-				>
-			</File>
-			<File
-				RelativePath=".\Interrupt.h"
-				>
-			</File>
 		</Filter>
 		<File
 			RelativePath=".\Exports.def"

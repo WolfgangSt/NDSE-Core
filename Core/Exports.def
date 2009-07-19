@@ -38,6 +38,7 @@ EXPORTS
 	ARM7_SetPC
 	ARM7_SourceLine
 	ARM7_Callstack
+	ARM7_Interrupt
 
 	ARM9_Stream
 	ARM9_DisassembleA
@@ -58,6 +59,7 @@ EXPORTS
 	ARM9_SetPC
 	ARM9_SourceLine
 	ARM9_Callstack
+	ARM9_Interrupt
 
 	DEBUGGER_GetSymbol
 	DEBUGGER_GetFilename

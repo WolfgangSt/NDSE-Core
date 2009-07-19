@@ -33,6 +33,7 @@
 #include "NDSE.h"
 #include "osdep.h"
 #include "runner.h"
+#include "interrupt.h"
 
 
 template <typename T>
@@ -404,6 +405,17 @@ source_info* STDCALL ARM7_SourceLine(unsigned long addr, int idx)
 	// source debugging infos are SHARED for the moment ...
 	return ARM9_SourceLine(addr, idx);
 	//return 0;
+}
+
+
+void STDCALL ARM9_Interrupt(unsigned long intr)
+{
+	interrupt<_ARM9>::fire(intr);
+}
+
+void STDCALL ARM7_Interrupt(unsigned long intr)
+{
+	interrupt<_ARM7>::fire(intr);
 }
 
 source_info* STDCALL ARM9_SourceLine(unsigned long addr, int idx)

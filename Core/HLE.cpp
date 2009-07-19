@@ -7,6 +7,7 @@
 #include "lz77.h"
 #include "runner.h"
 #include "HLE.h"
+#include "Interrupt.h"
 #include <QThread>
 
 template <typename>
@@ -176,11 +177,16 @@ void HLE<T>::load32_array(unsigned long addr, int num, unsigned long *data)
 	}
 }
 
+template <typename T> struct dirty_flag {};
+template <> struct dirty_flag<_ARM9> { enum { VALUE = memory_block::PAGE_DIRTY_J9 }; };
+template <> struct dirty_flag<_ARM7> { enum { VALUE = memory_block::PAGE_DIRTY_J7 }; };
+
 
 // execute a jump out of page boundaries
 template <typename T>
 char* FASTCALL_IMPL(HLE<T>::compile_and_link_branch_a_real(unsigned long addr))
 {
+	interrupt<T>::poll_process();
 	// resolve destination
 	memory_block *b = memory_map<T>::addr2page(addr);
 	processor<T>::last_page = b;
@@ -188,9 +194,9 @@ char* FASTCALL_IMPL(HLE<T>::compile_and_link_branch_a_real(unsigned long addr))
 	if (b->flags & (memory_block::PAGE_EXECPROT))
 		invalid_branch(addr);
 	// recompile if dirty
-	if (b->flags & memory_block::PAGE_DIRTY_J9)
+	if (b->flags & dirty_flag<T>::VALUE)
 	{
-		b->flags &= ~memory_block::PAGE_DIRTY_J9;
+		b->flags &= ~dirty_flag<T>::VALUE;
 		if ( b->get_jit<T, IS_ARM>() )
 			b->recompile<T, IS_ARM>();
 		if ( b->get_jit<T, IS_THUMB>() )

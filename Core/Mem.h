@@ -7,10 +7,11 @@
 // used to synchronize memory updates
 #ifdef __GNUC__
 //#define _InterlockedOr(p,v) __sync_fetch_and_or(p, v)
-#define _InterlockedOr(p,v) (*p |= v)
+//#define _InterlockedOr(p,v) (*p |= v)
 #else
 #include <intrin.h>
 #pragma intrinsic (_InterlockedOr)
+#pragma intrinsic (_InterlockedExchange)
 #endif
 
 template <int n> struct verify_zero { verify_zero<n> error;  };
