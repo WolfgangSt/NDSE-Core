@@ -13,6 +13,7 @@
 
 #include "loader_nds.h"
 #include "loader_elf.h"
+#include "loader_raw.h"
 
 unsigned short util::get_crc16(unsigned short crc, char* mem, int len)
 {
@@ -72,10 +73,18 @@ bool util::load_file(const char *filename, util::load_result &res, load_hint lh)
 	res.arm7_entry = 0;
 	res.arm9_entry = 0;
 	try {
-		if (loader_nds::is_valid(fd))
-			result = loader_nds::load(fd, res, lh);
-		else if (loader_elf::is_valid(fd))
-			result = loader_elf::load(fd, res, lh);
+		switch (lh)
+		{
+		case LH_RAW7:
+		case LH_RAW9:
+			result = loader_raw::load(fd, res, lh);
+			break;
+		default:
+			if (loader_nds::is_valid(fd))
+				result = loader_nds::load(fd, res, lh);
+			else if (loader_elf::is_valid(fd))
+				result = loader_elf::load(fd, res, lh);
+		}
 	} catch (...)
 	{
 		result = false;

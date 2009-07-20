@@ -303,6 +303,18 @@
 					>
 				</File>
 			</Filter>
+			<Filter
+				Name="RAW"
+				>
+				<File
+					RelativePath=".\loader_raw.cpp"
+					>
+				</File>
+				<File
+					RelativePath=".\loader_raw.h"
+					>
+				</File>
+			</Filter>
 		</Filter>
 		<Filter
 			Name="Recompiler"

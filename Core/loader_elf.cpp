@@ -8,9 +8,15 @@
 #include <libdwarf/dwarf.h>
 #include <vector>
 
-#include "Breakpoint.h" // for DEBUGGING only!
-
-//#include <QDir> // just for debugging! remove later!
+#ifdef WIN32
+#include <io.h>
+#define read _read
+#define lseek _lseek
+#define open _open
+#define close _close
+#else
+#include <unistd.h>
+#endif
 
 void loader_elf::init()
 {
@@ -34,26 +40,25 @@ struct stream_elf
 {
 	struct context
 	{
-		Elf32_Ehdr *ehdr;
-		Elf_Scn    *sect;
-		Elf32_Shdr *sect_hdr;
-		char       *sect_name;
-		Elf_Data   *data;
+		int fd;
 		Elf32_Addr  addr;
-		bool        failed;
-		char       *buffer;
+		Elf32_Ehdr *ehdr;
+		Elf32_Phdr *phdr;
 	};
 	static void process(memory_block *b, char *mem, int sz, context &ctx)
 	{
 		if ((b->flags & memory_block::PAGE_INVALID) == 0)
 		{
-			memcpy( mem, ctx.buffer, sz );
+			if (read( ctx.fd, mem, sz ) != sz) // read
+			{
+				// problem
+			}
 			b->dirty();
 		} else
 		{
 			// problem
 		}
-		ctx.buffer += sz;
+
 	}
 };
 
@@ -61,52 +66,57 @@ static bool load_debug(Elf *elf);
 bool loader_elf::load(int fd, util::load_result &res, util::load_hint lh)
 {
 	stream_elf::context sd;
+
+	sd.fd = fd;
 	Elf *arf = elf_begin( fd, ELF_C_READ, 0 );
 	if (!arf)
 		return false;
 
 	sd.ehdr = elf32_getehdr(arf);
-	sd.sect = elf_getscn(arf, 0);
-	while (sd.sect) // loop over all sections
+	sd.phdr = elf32_getphdr(arf);
+	size_t nump;
+	if (elf_getphnum(arf, &nump) != 1)
 	{
-		sd.sect_hdr = elf32_getshdr(sd.sect);
-		sd.sect_name = elf_strptr(arf, sd.ehdr->e_shstrndx, sd.sect_hdr->sh_name);
-		sd.data = elf_getdata( sd.sect, 0 );
-		while (sd.data)
-		{
-			sd.addr = sd.sect_hdr->sh_addr + sd.data->d_off;
-			sd.failed = false;
-			if ((sd.data->d_size > 0) && (sd.data->d_buf))
-			{
-				// stream up the section
-				sd.buffer = (char*)sd.data->d_buf;
-				
-				//logging<_ARM9>::logf("streaming section from %08X to %08X", sd.addr, sd.addr + sd.data->d_size);
-				switch (lh)
-				{
-				case util::LH_ARM7:
-					res.flags |= util::LOAD_ARM7;
-					res.arm7_entry = sd.ehdr->e_entry;
-					memory_map<_ARM7>::process_memory<stream_elf>( 
-						sd.addr,
-						(int)sd.data->d_size, 
-						sd );
-					break;
-				case util::LH_ARM9:
-				default:
-					res.flags |= util::LOAD_ARM9;
-					res.arm9_entry = sd.ehdr->e_entry;
-					memory_map<_ARM9>::process_memory<stream_elf>( 
-						sd.addr,
-						(int)sd.data->d_size, 
-						sd );
-					break;
-				}
-			}
-			sd.data = elf_getdata( sd.sect, sd.data );
-		}
-		sd.sect = elf_nextscn(arf, sd.sect);
+		elf_end(arf);
+		return false;
 	}
+
+	logging<_DEFAULT>::log("Loading ELF");
+	for (size_t i = 0; i < nump; i++, sd.phdr++)
+	{
+		if (!(sd.phdr->p_flags & PT_LOAD))
+			continue;
+		logging<_DEFAULT>::logf("Loading %08X - %08X: ", 
+			sd.phdr->p_paddr, sd.phdr->p_paddr + sd.phdr->p_filesz);
+		lseek(fd, sd.phdr->p_offset, SEEK_SET);
+
+		sd.addr = sd.phdr->p_paddr;
+
+		switch (lh)
+		{
+		case util::LH_ARM7:
+			res.flags |= util::LOAD_ARM7;
+			res.arm7_entry = sd.ehdr->e_entry;
+			memory_map<_ARM7>::process_memory<stream_elf>( 
+				sd.addr,
+				sd.phdr->p_filesz, 
+				sd );
+			break;
+		case util::LH_ARM9:
+		default:
+			res.flags |= util::LOAD_ARM9;
+			res.arm9_entry = sd.ehdr->e_entry;
+			memory_map<_ARM9>::process_memory<stream_elf>( 
+				sd.addr,
+				sd.phdr->p_filesz, 
+				sd );
+			break;
+		}
+	}
+
+	
+	//sd.sect_hdr = elf32_getshdr(sd.sect);
+	
 	::load_debug(arf);
 	elf_end(arf);
 	return true;

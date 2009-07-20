@@ -20,6 +20,8 @@ template<> const char *CPU_NAME<_ARM9>::name = "Arm9";
 void DEBUG_STORE(unsigned long addr, unsigned long sz)
 {
 // add memory debugger here
+	if ((addr >= 0x01000100) &&  (addr <= 0x01010200))
+		DebugBreak_();
 }
 #else
 #define DEBUG_STORE(addr,sz)
