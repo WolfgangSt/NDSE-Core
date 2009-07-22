@@ -79,80 +79,99 @@ struct interrupt
 // _ARM9 hardcoded here
 template <> inline void interrupt<_ARM9>::poll_process()
 {
-	static int ctr = 0;
+	// early out of IE is false
+	static bool inside = false; // dont allow recursive interrupts for now
+	static volatile unsigned long &IME = *(volatile unsigned long*)
+		(memory::registers9_1.blocks[0x208 >> PAGING::SIZE_BITS].mem + 
+		 (0x208 & PAGING::ADDRESS_MASK));
+	static volatile unsigned long &IE = *(volatile unsigned long*)
+		(memory::registers9_1.blocks[0x210 >> PAGING::SIZE_BITS].mem + 
+		 (0x210 & PAGING::ADDRESS_MASK));
+	static volatile unsigned long &IF = *(volatile unsigned long*)
+		(memory::registers9_1.blocks[0x214 >> PAGING::SIZE_BITS].mem + 
+		 (0x214 & PAGING::ADDRESS_MASK));
 
-	ctr++;
-	if (ctr < 1000000)
+	
+	if (inside)
 		return;
-	ctr = 0;
-
+	if (!(IME & 1))
+		return;
+	
 	unsigned long intr = (unsigned long)_InterlockedExchange(&signaled, 0);
-	//if (intr)
+	
+	intr = intr & IE;
+	if (intr)
 	{
-		/*
-		// block is 0x100 size and aligned by 0x100
-		// as page size is 0x200 minimum this will always be within one block
+		IF = intr;
+		// wstack is 0x100 size and aligned by 0x100
+		// as page size is 0x200 minimum this will always be within one memory_block
 		memory_block *b = &memory::data_tcm.blocks[0x3F00 >> PAGING::SIZE_BITS];
 		wstack *istack = (wstack*)(b->mem + (0x3F00 & PAGING::ADDRESS_MASK));
 
-		// assume correct alignment!
-		// that is all irq handlers must be on the same page
 		unsigned long addr = istack->irq_handler;
-		unsigned long addr_low = (addr - MAX_INTERRUPTS * 8);
-		b = memory_map<_ARM9>::addr2page(addr_low);
-		assert(b == memory_map<_ARM9>::addr2page(addr));
-		irq_entry *irqs = (irq_entry*)(b->mem + (addr_low & PAGING::ADDRESS_MASK));
-
-		unsigned long irq = irqs[0].irq;
-
-
-		// select irq here
-		logging<_ARM9>::logf("Interrupt to %08X (%x)", istack->irq_handler, irq); 
-		emulation_context ctx = processor<_ARM9>::context;
-		//HLE<_ARM9>::invoke(irq, &ctx);
-		*/
-
+		logging<_ARM9>::logf("Interrupt to %08X", addr); 
 		emulation_context &ctx = processor<_ARM9>::context;
-		unsigned long backup[6] = { 
-			ctx.regs[0], 
-			ctx.regs[1],
-			ctx.regs[2],
-			ctx.regs[3],
-			ctx.regs[12],
-			ctx.regs[14]
-		};
+		//unsigned long lr = ctx.regs[14];
+		//unsigned long pc = ctx.regs[15];
+		emulation_context backup = ctx;
 		
-
-		// stmdb r13!,{r0-r3,r12,r14}
-		ctx.regs[13] -= 6*4;
-		HLE<_ARM9>::store32_array( ctx.regs[13], 6, backup );
+		ctx.regs[15] = addr;
+		inside = true;
+		HLE<_ARM9>::invoke(addr, &ctx);
+		inside = false;
 		
-		// rebranching wont work here as this is called from within the JIT
-		// so for now we just do a HLE invoke
-
-		// mov r0,#0x4000000
-		ctx.regs[0]  = 0x4000000;
-		// adr lr,IntRet <-- implicitly done within HLE::invoke
-		// ldr pc,[r0,#-4] @ pc = [0x3007ffc]
-		ctx.regs[15] = 0x3007FFC;
-		HLE<_ARM9>::invoke( 0x3007FFC, &ctx );
-		// on interrupt return we will reach this point, undo the stores
-
-		//ldmia r13!,{r0-r3,r12,r14}
-		HLE<_ARM9>::load32_array( ctx.regs[13], 6, backup );
-		ctx.regs[13] += 6*4;
-
-		ctx.regs[0] = backup[0];
-		ctx.regs[1] = backup[1];
-		ctx.regs[2] = backup[2];
-		ctx.regs[3] = backup[3];
-		ctx.regs[12] = backup[4];
-		ctx.regs[14] = backup[5];
+		ctx = backup;
 	}
 }
 
-template <typename T> void interrupt<T>::poll_process()
+// _ARM7 hardcoded here
+template <> inline void interrupt<_ARM7>::poll_process()
 {
+	// early out of IE is false
+	static bool inside = false; // dont allow recursive interrupts for now
+	static volatile unsigned long &IME = *(volatile unsigned long*)
+		(memory::registers7_1.blocks[0x208 >> PAGING::SIZE_BITS].mem + 
+		 (0x208 & PAGING::ADDRESS_MASK));
+	static volatile unsigned long &IE = *(volatile unsigned long*)
+		(memory::registers7_1.blocks[0x210 >> PAGING::SIZE_BITS].mem + 
+		 (0x210 & PAGING::ADDRESS_MASK));
+	static volatile unsigned long &IF = *(volatile unsigned long*)
+		(memory::registers7_1.blocks[0x214 >> PAGING::SIZE_BITS].mem + 
+		 (0x214 & PAGING::ADDRESS_MASK));
+
+	
+	if (inside)
+		return;
+	if (!(IME & 1))
+		return;
+	
+
+	unsigned long intr = (unsigned long)_InterlockedExchange(&signaled, 0);
+	
+	intr = intr & IE;
+	if (intr)
+	{
+		IF = intr;
+		// wstack is 0x100 size and aligned by 0x100
+		// as page size is 0x200 minimum this will always be within one memory_block
+		memory_block *b = &memory::arm7_wram.blocks[0xFF00 >> PAGING::SIZE_BITS];
+		wstack *istack = (wstack*)(b->mem + (0xFF00 & PAGING::ADDRESS_MASK));
+
+		unsigned long addr = istack->irq_handler;
+		logging<_ARM7>::logf("Interrupt to %08X", addr); 
+		emulation_context &ctx = processor<_ARM7>::context;
+		//unsigned long lr = ctx.regs[14];
+		//unsigned long pc = ctx.regs[15];
+		emulation_context backup = ctx;
+		
+		
+		ctx.regs[15] = addr;
+		inside = true;
+		HLE<_ARM7>::invoke(addr, &ctx);
+		inside = false;
+		
+		ctx = backup;
+	}
 }
 
 

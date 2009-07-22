@@ -19,7 +19,7 @@ memory_region< PAGING::B<2048> > memory::palettes("Palette Memory",             
 // io registers
 memory_region< PAGING::KB<32> >  memory::arm7_shared("Shared Internal Work RAM", 0x00000000, 1);
 memory_region< PAGING::KB<16> >  memory::data_tcm("Data TCM",                    0x00C000C0, 1000);
-memory_region< PAGING::B<0x3E0000> > memory::ram("Main Memory",                  0x00FF0000, 1);
+memory_region< PAGING::MB<4> >   memory::ram("Main Memory",                  0x00FF0000, 1);
 memory_region< PAGING::KB<32> >  memory::inst_tcm("Instruction TCM",             0x00C0C000, 1001);
 memory_region< PAGING::KB<256> > memory::exp_wram("Internal Expanded Work RAM",  0x00000000, 1);
 // wireless communication wait state 1
@@ -32,8 +32,6 @@ memory_region< PAGING::B<512> >  memory::registers9_2("IO registers 9.1", 0x0000
 memory_region< PAGING::B<512> >  memory::registers9_3("IO registers 9.2", 0x00000000, 1); // 0x04100000
 
 memory_region< PAGING::KB<8> >   memory::registers7_1("IO registers 7.0", 0x00000000, 1); // 0x04000000
-
-memory_region< PAGING::B<4096> >  memory::cart_header("CART Header", _RGB(138,236,170), 1); // 0x027FF000
 
 // VRAM banks
 memory_region< PAGING::KB<128> > memory::vram_a("VRAM-A", 0x00000000, 2);
@@ -74,14 +72,14 @@ const memory_region_base* memory::regions[memory::NUM_REGIONS] = {
 	&arm7_wram,
 	&system_rom,
 	&registers9_1,
-	&registers7_1,
-	&cart_header
+	&registers7_1
 };
 
 // gotta figure the correct mappings somehow yet ...
 template <> void memory::initializer<_ARM7>::initialize_mapping()
 {
 	memory_map<_ARM7>::init_null();
+	memory_map<_ARM7>::map_region( &hle_bios,      PAGING::PAGES<0xEFEF0000>::PAGE );
 
 	memory_map<_ARM7>::map_region( &accessory_ram, PAGING::REGION(0x0A000000, 0x0A100000) );
 	memory_map<_ARM7>::map_region( &accessory_rom, PAGING::REGION(0x08000000, 0x0A000000) );
@@ -92,6 +90,7 @@ template <> void memory::initializer<_ARM7>::initialize_mapping()
 
 	memory_map<_ARM7>::map_region( &arm7_wram,     PAGING::REGION(0x03800000, 0x04000000) );
 	memory_map<_ARM7>::map_region( &arm7_shared,   PAGING::REGION(0x03000000, 0x03800000) );
+
 			
 			
 			
@@ -100,7 +99,7 @@ template <> void memory::initializer<_ARM7>::initialize_mapping()
 	// figure somehow how extended RAM behaves.
 	// is it just larger or does it leave gap between 0x023E0000 and 0x2400000
 	// needs testing on actual hardware ...
-	memory_map<_ARM7>::map_region( &ram,           PAGING::REGION(0x02000000, 0x02000000 + ram.SIZE) );
+	memory_map<_ARM7>::map_region( &ram,           PAGING::REGION(0x02000000, 0x03000000) );
 
 	memory_map<_ARM7>::map_region( &system_rom,    PAGING::REGION(0x00000000, 0x00010400) );
 }
@@ -116,9 +115,7 @@ template <> void memory::initializer<_ARM9>::initialize_mapping()
 	memory_map<_ARM9>::map_region( &palettes,      PAGING::PAGES<0x05000000>::PAGE );
 	memory_map<_ARM9>::map_region( &registers9_1,  PAGING::PAGES<0x04000000>::PAGE );
 
-	memory_map<_ARM9>::map_region( &ram,           PAGING::REGION(0x02000000, 0x02000000 + ram.SIZE) );
-	//memory_map<_ARM9>::map_region( &ram,           PAGING::REGION(0x02400000, 0x02400000 + ram.SIZE) );
-	memory_map<_ARM9>::map_region( &cart_header,   PAGING::PAGES<0x27FF000>::PAGE );
+	memory_map<_ARM9>::map_region( &ram,           PAGING::REGION(0x02000000, 0x03000000) );
 };
 
 

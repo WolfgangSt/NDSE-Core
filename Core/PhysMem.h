@@ -31,7 +31,9 @@ struct memory
 	// io registers
 	static memory_region< PAGING::KB<32> >  arm7_shared;
 	static memory_region< PAGING::KB<16> >  data_tcm;
-	static memory_region< PAGING::B<0x3E0000> > ram;
+	static memory_region< PAGING::MB<4> > ram;
+
+
 	static memory_region< PAGING::KB<32> >  inst_tcm;
 	static memory_region< PAGING::KB<256> > exp_wram; // probably same as ram_ext???
 	// wireless communication wait state 1
@@ -53,11 +55,7 @@ struct memory
 	typedef memory_region< PAGING::KB<8> > REGISTERS7_1; // arm7 io regs
 	static REGISTERS7_1                    registers7_1; // 0x04000000 - 0x04002000
 
-
-	// this actually seems to be 4kb shared work ram?!
-	static memory_region< PAGING::B<4096> > cart_header; // 0x027FF000
-
-	enum { NUM_REGIONS = 27 };
+	enum { NUM_REGIONS = 26 };
 	static const memory_region_base* regions[NUM_REGIONS];
 
 	static memory_block* get_nullblock()

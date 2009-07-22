@@ -239,7 +239,7 @@ void compiler::load_ecx_reg_or_pc(int reg, unsigned long offset)
 	} else
 	{
 		// ip relative
-		s << "\x8B\x4D" << (char)OFFSET(regs[ctx.rn]);    // mov ecx, [ebp+rn]
+		s << "\x8B\x4D" << (char)OFFSET(regs[15]);    // mov ecx, [ebp+rn]
 		s << "\x81\xE1"; write( s, (unsigned long)(~PAGING::ADDRESS_MASK) ); // and ecx, ~PAGING::ADDR_MASK
 		offset += ((inst+2) << INST_BITS) & ~3;
 	}
@@ -257,7 +257,7 @@ void compiler::load_eax_reg_or_pc(int reg, unsigned long offset)
 	} else
 	{
 		// ip relative
-		s << "\x8B\x45" << (char)OFFSET(regs[ctx.rn]);    // mov eax, [ebp+rn]
+		s << "\x8B\x45" << (char)OFFSET(regs[15]);    // mov eax, [ebp+rn]
 		s << "\x25"; write( s, (unsigned long)(~PAGING::ADDRESS_MASK) ); // and eax, ~PAGING::ADDR_MASK
 		offset += ((inst+2) << INST_BITS) & ~3;
 	}
@@ -726,11 +726,11 @@ void compiler::compile_instruction()
 		break;
 	case INST::BX:
 		// Branch to register (generally R14)
-		s << "\x8B\x4D" << (char)OFFSET(regs[ctx.rm]); // mov ecx, [ebp+rm]
-		s << "\x89\x4D" << (char)OFFSET(regs[15]);     // mov [ebp+r15], ecx
+		load_ecx_reg_or_pc(ctx.rm, 0);              // mov ecx, [ebp+rm]
+		s << "\x89\x4D" << (char)OFFSET(regs[15]);  // mov [ebp+r15], ecx
 		update_callstack();
 		JMPP(compile_and_link_branch_a)
-		//s << "\xFF\xE0";                               // jmp eax
+		//s << "\xFF\xE0";                          // jmp eax
 		break;
 
 	case INST::BLX: // Branch and link register
@@ -741,7 +741,7 @@ void compiler::compile_instruction()
 		s << "\x89\x4D" << (char)OFFSET(regs[14]);             // mov [ebp+r14], ecx
 		record_callstack();
 		// branch
-		s << "\x8B\x4D" << (char)OFFSET(regs[ctx.rm]);         // mov ecx, [ebp+Rm]
+		load_ecx_reg_or_pc(ctx.rm, 0);                         // mov ecx, [ebp+rm]
 		s << "\x89\x4D" << (char)OFFSET(regs[15]);             // mov [ebp+r15], ecx
 		JMPP(compile_and_link_branch_a)
 		//s << "\xFF\xE0";                                       // jmp eax
@@ -1129,35 +1129,47 @@ void compiler::compile_instruction()
 		break;
 
 	case INST::MRS_CPSR:
-		break_if_pc(ctx.rd);
-		s << "\x8B\x45" << (char)OFFSET(cpsr); // mov eax, [ebp+cpsr]
-		s << "\x89\x45" << (char)OFFSET(regs[ctx.rd]); // mov [ebp+rd], eax
-		break;
+	case INST::MRS_SPSR:
+		{
+			char sr = (char)OFFSET(cpsr);
+			if (ctx.instruction == INST::MRS_SPSR)
+				sr = (char)OFFSET(spsr);
+			break_if_pc(ctx.rd);
+			s << "\x8B\x45" << sr;                         // mov eax, [ebp+*psr]
+			s << "\x89\x45" << (char)OFFSET(regs[ctx.rd]); // mov [ebp+rd], eax
+			break;
+		}
 
 	case INST::MSR_CPSR_R:
-		// mask = Rn
-		break_if_pc(ctx.rm);
-		break_if_pc(ctx.rn);
-
-		// todo: priviledge mode check depending on mask
-
-		if (ctx.rn == 0)
-			s << "\x90"; // nothing masked = nothing to write...
-		else
+	case INST::MSR_SPSR_R:
 		{
-			if (ctx.rn & 0x7)
-				CALLP(is_priviledged)
-			
-			s << "\x8B\x45" << (char)OFFSET(regs[ctx.rm]); // mov eax, [ebp+Rm]
-			if (ctx.rn != 0xF)
+			char sr = (char)OFFSET(cpsr);
+			if (ctx.instruction == INST::MSR_SPSR_R)
+				sr = (char)OFFSET(spsr);
+
+			// mask = Rn
+			break_if_pc(ctx.rm);
+			break_if_pc(ctx.rn);
+
+			// todo: priviledge mode check depending on mask
+			if (ctx.rn == 0)
+				s << "\x90"; // nothing masked = nothing to write...
+			else
 			{
-				// mask out
-				s << '\x25'; write(s, cpsr_masks[ctx.rn]); // and eax, mask
+				if (ctx.rn & 0x7)
+					CALLP(is_priviledged)
+				
+				s << "\x8B\x45" << (char)OFFSET(regs[ctx.rm]); // mov eax, [ebp+Rm]
+				if (ctx.rn != 0xF)
+				{
+					// mask out
+					s << '\x25'; write(s, cpsr_masks[ctx.rn]); // and eax, mask
+				}
+				// store to cpsr
+				s << "\x89\x45" << sr; // mov [ebp+*psr], eax
 			}
-			// store to cpsr
-			s << "\x89\x45" << (char)OFFSET(cpsr);
+			break;
 		}
-		break;
 	case INST::TST_I: // TST Rn, imm
 		break_if_pc(ctx.rn);
 		s << "\xF7\x45" << (char)OFFSET(regs[ctx.rn]); // test [ebp+Rm],

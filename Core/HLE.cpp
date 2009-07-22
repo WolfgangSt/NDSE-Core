@@ -497,10 +497,23 @@ public:
 template <typename T> void HLE<T>::IntrWait()
 {
 	// nospam...
-	logging<_ARM9>::logf("SWI 4h [IntrWait] called (noimpl)");
+	logging<T>::logf("SWI 4h [IntrWait] called (noimpl)");
 	//QPseudoThread::do_sleep(10);
 	QPseudoThread::yieldCurrentThread();
 	//DebugBreak_(); // not yet supported
+}
+
+
+template <typename T> void HLE<T>::delay()
+{
+	// does a tiny busy idle loop
+	// for R0*4 tacts
+	//QPseudoThread::do_sleep(10);
+}
+
+template <typename T> void HLE<T>::wait_vblank()
+{
+	QPseudoThread::do_sleep(20); //Sleep(20);
 }
 
 template <>
@@ -509,7 +522,7 @@ void FASTCALL_IMPL(HLE<_ARM9>::swi(unsigned long idx))
 	switch (idx)
 	{
 	case 0x4: return HLE<_ARM9>::IntrWait();
-	case 0x5: return QPseudoThread::do_sleep(20); //Sleep(20);
+	case 0x5: return HLE<_ARM9>::wait_vblank();
 	case 0x8: return HLE<_ARM9>::sqrt();
 	case 0xB: return HLE<_ARM9>::CpuSet();
 	case 0x12: return HLE<_ARM9>::LZ77UnCompVram();
@@ -523,7 +536,9 @@ void FASTCALL_IMPL(HLE<_ARM7>::swi(unsigned long idx))
 {
 	switch (idx)
 	{
+	case 0x3: return HLE<_ARM7>::delay();
 	case 0x4: return HLE<_ARM7>::IntrWait();
+	case 0x5: return HLE<_ARM7>::wait_vblank();
 	case 0xE: return HLE<_ARM7>::crc16();
 	}
 	logging<_ARM7>::logf("Unhandled SWI %08X called", idx);

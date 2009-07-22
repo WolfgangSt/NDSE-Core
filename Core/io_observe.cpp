@@ -466,6 +466,12 @@ void io_observer::process7()
 					reactor_data9[0][0x180 >> 2] = ipc;
 					break;
 				}
+			case 0x1C0:
+				{
+					name = "[SPICNT] SPI Bus Control/Status Register";
+					// 
+					break;
+				}
 			}
 			
 			logging<_DEFAULT>::logf("IO reactor thread detected change at ARM7:%08X from %08X to %08X [%s]", 

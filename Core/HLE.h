@@ -64,7 +64,9 @@ struct HLE
 private:
 	static char* FASTCALL(compile_and_link_branch_a_real(unsigned long addr));
 	
+	static void delay();          // SWI 3h
 	static void IntrWait();       // SWI 4h
+	static void wait_vblank();    // SWI 5h
 	static void sqrt();           // SWI 8h
 	static void CpuSet();         // SWI Bh
 	static void crc16();          // SWI Eh
