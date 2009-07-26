@@ -8,7 +8,7 @@ class io_observer
 private:
 	// backup of all pages
 	typedef unsigned long reactor_page[PAGING::SIZE / sizeof(unsigned long)];
-	static reactor_page reactor_data9[memory::REGISTERS9_1::PAGES];
+	static reactor_page reactor_data9[REGISTERS9_1::PAGES];
 	static reactor_page reactor_data7[memory::REGISTERS7_1::PAGES];
 	static void process9();
 	static void process7();

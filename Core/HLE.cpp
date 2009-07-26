@@ -10,6 +10,10 @@
 #include "Interrupt.h"
 #include <QThread>
 
+// TODO: could give the compiler hints about the
+// b->flags & memory_block::PAGE_ACCESSHANDLER
+// checks as they are almost always evaluating to false
+
 template <typename>
 struct CPU_NAME { static const char *name; };
 
@@ -55,6 +59,8 @@ unsigned long FASTCALL_IMPL(HLE<T>::load32(unsigned long addr))
 	memory_block *b = memory_map<T>::addr2page(addr);
 	if (b->flags & (memory_block::PAGE_INVALID | memory_block::PAGE_READPROT))
 		invalid_read(addr);
+	if (b->flags & memory_block::PAGE_ACCESSHANDLER) // need special handling?
+		return b->base->load32(addr);
 	if (b->readcb)
 		b->readcb(b, addr);
 	return *(unsigned long*)(&b->mem[addr & (PAGING::ADDRESS_MASK & (~3))]);
@@ -66,6 +72,8 @@ unsigned long FASTCALL_IMPL(HLE<T>::load16u(unsigned long addr))
 	memory_block *b = memory_map<T>::addr2page(addr);
 	if (b->flags & (memory_block::PAGE_INVALID | memory_block::PAGE_READPROT))
 		invalid_read(addr);
+	if (b->flags & memory_block::PAGE_ACCESSHANDLER) // need special handling?
+		return b->base->load16u(addr);
 	if (b->readcb)
 		b->readcb(b, addr);
 	return *(unsigned short*)(&b->mem[addr & (PAGING::ADDRESS_MASK & (~1))]);
@@ -77,6 +85,8 @@ unsigned long FASTCALL_IMPL(HLE<T>::load16s(unsigned long addr))
 	memory_block *b = memory_map<T>::addr2page(addr);
 	if (b->flags & (memory_block::PAGE_INVALID | memory_block::PAGE_READPROT))
 		invalid_read(addr);
+	if (b->flags & memory_block::PAGE_ACCESSHANDLER) // need special handling?
+		return b->base->load16s(addr);
 	if (b->readcb)
 		b->readcb(b, addr);
 	return *(signed short*)(&b->mem[addr & (PAGING::ADDRESS_MASK & (~1))]);
@@ -88,6 +98,8 @@ unsigned long FASTCALL_IMPL(HLE<T>::load8u(unsigned long addr))
 	memory_block *b = memory_map<T>::addr2page(addr);
 	if (b->flags & (memory_block::PAGE_INVALID | memory_block::PAGE_READPROT))
 		invalid_read(addr);
+	if (b->flags & memory_block::PAGE_ACCESSHANDLER) // need special handling?
+		return b->base->load8u(addr);
 	if (b->readcb)
 		b->readcb(b, addr);
 	return *(unsigned char*)(&b->mem[addr & (PAGING::ADDRESS_MASK)]);
@@ -104,6 +116,9 @@ void HLE<T>::load32_array(unsigned long addr, int num, unsigned long *data)
 	memory_block *b = memory_map<T>::addr2page(addr);
 	if (b->flags & (memory_block::PAGE_INVALID | memory_block::PAGE_READPROT))
 		return invalid_read(addr);
+	if (b->flags & memory_block::PAGE_ACCESSHANDLER) // need special handling?
+		return b->base->load32_array(addr, num, data);
+
 	unsigned long subaddr = addr & PAGING::ADDRESS_MASK;
 	while (data != end)
 	{
@@ -131,9 +146,12 @@ void FASTCALL_IMPL(HLE<T>::store32(unsigned long addr, unsigned long value))
 {
 	DEBUG_STORE(addr, 4);
 	memory_block *b = memory_map<T>::addr2page(addr);
+	if (b->flags & memory_block::PAGE_ACCESSHANDLER) // need special handling?
+		return b->base->store32(addr, value);
+
 	if (b->flags & (memory_block::PAGE_INVALID | memory_block::PAGE_WRITEPROT))
 		return invalid_write(addr);
-	*(unsigned long*)(&b->mem[addr & (PAGING::ADDRESS_MASK & (~3))]) = value;
+	*(unsigned long*)(&b->mem[addr & (PAGING::ADDRESS_MASK & (~3))]) = value;	
 	b->dirty();
 }
 
@@ -142,6 +160,9 @@ void FASTCALL_IMPL(HLE<T>::store16(unsigned long addr, unsigned long value))
 {
 	DEBUG_STORE(addr, 2);
 	memory_block *b = memory_map<T>::addr2page(addr);
+	if (b->flags & memory_block::PAGE_ACCESSHANDLER) // need special handling?
+		return b->base->store16(addr, value);
+
 	if (b->flags & (memory_block::PAGE_INVALID | memory_block::PAGE_WRITEPROT))
 		return invalid_write(addr);
 	*(unsigned short*)(&b->mem[addr & (PAGING::ADDRESS_MASK & (~1))]) = (unsigned short)value;
@@ -153,6 +174,9 @@ void FASTCALL_IMPL(HLE<T>::store8(unsigned long addr, unsigned long value))
 {
 	DEBUG_STORE(addr, 1);
 	memory_block *b = memory_map<T>::addr2page(addr);
+	if (b->flags & memory_block::PAGE_ACCESSHANDLER) // need special handling?
+		return b->base->store8(addr, value);
+
 	if (b->flags & (memory_block::PAGE_INVALID | memory_block::PAGE_WRITEPROT))
 		return invalid_write(addr);
 	*(unsigned char*)(&b->mem[addr & (PAGING::ADDRESS_MASK)]) = (unsigned char)value;
@@ -164,9 +188,12 @@ void HLE<T>::store32_array(unsigned long addr, int num, unsigned long *data)
 {	
 	DEBUG_STORE(addr, num*4);
 	//logging<_ARM9>::logf("storing %i words to %08x", num, addr);
-	const unsigned long *end = data + num;
 	// load first page
 	memory_block *b = memory_map<T>::addr2page(addr);
+	if (b->flags & memory_block::PAGE_ACCESSHANDLER) // need special handling?
+		return b->base->store32_array(addr, num, data);
+
+	const unsigned long *end = data + num;
 	if (b->flags & (memory_block::PAGE_INVALID | memory_block::PAGE_WRITEPROT))
 		return invalid_write(addr);
 	unsigned long subaddr = addr & (PAGING::ADDRESS_MASK & (~3));
@@ -516,7 +543,7 @@ public:
 template <typename T> void HLE<T>::IntrWait()
 {
 	// nospam...
-	logging<T>::logf("SWI 4h [IntrWait] called (noimpl)");
+	//logging<T>::logf("SWI 4h [IntrWait] called (noimpl)");
 	//QPseudoThread::do_sleep(10);
 	QPseudoThread::yieldCurrentThread();
 	//DebugBreak_(); // not yet supported

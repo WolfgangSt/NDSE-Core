@@ -402,6 +402,14 @@
 			<Filter
 				Name="IO Registers"
 				>
+				<File
+					RelativePath=".\IORegs.cpp"
+					>
+				</File>
+				<File
+					RelativePath=".\IORegs.h"
+					>
+				</File>
 			</Filter>
 		</Filter>
 		<Filter

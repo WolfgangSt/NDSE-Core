@@ -81,17 +81,20 @@ struct memory_region_base;
 struct memory_block /* final, do not inherit! */
 {
 	enum {
-		PAGE_READPROT      = 0x01,
-		PAGE_WRITEPROT     = 0x02,
-		PAGE_EXECPROT      = 0x04,
-		PAGE_INVALID       = 0x08,
+		PAGE_READPROT      = 0x01, // page cannot be read from
+		PAGE_WRITEPROT     = 0x02, // page cannot be written to
+		PAGE_EXECPROT      = 0x04, // page cannot be executed
+		PAGE_INVALID       = 0x08, // page does not exist for client
 		PAGE_NULL          = PAGE_INVALID | PAGE_EXECPROT | PAGE_WRITEPROT | PAGE_READPROT,
 
-		PAGE_DIRTY_J7      = 0x10,
-		PAGE_DIRTY_J9      = 0x20,
+		// custom plugins might add dirty flags here
+		PAGE_DIRTY_J7      = 0x10, // JIT uses this for optimizing recompiling
+		PAGE_DIRTY_J9      = 0x20, // code pages on ARM7 and ARM9
 		PAGE_DIRTY_REACTOR = 0x40,
 		PAGE_DIRTY_VRAM    = 0x80,
-		PAGE_DIRTY         = PAGE_DIRTY_J7 | PAGE_DIRTY_J9 | PAGE_DIRTY_REACTOR | PAGE_DIRTY_VRAM
+		PAGE_DIRTY         = PAGE_DIRTY_J7 | PAGE_DIRTY_J9 | PAGE_DIRTY_REACTOR | PAGE_DIRTY_VRAM,
+
+		PAGE_ACCESSHANDLER = 0x100 // page needs special mem access handling
 	};
 
 	typedef void (*mem_callback)(memory_block *block);  
@@ -114,7 +117,7 @@ struct memory_block /* final, do not inherit! */
 	template <typename T, typename U> void recompile();
 	bool react();
 
-        inline void dirty()
+	inline void dirty()
 	{
 		_InterlockedOr( (long*)&flags, PAGE_DIRTY );
 		if (writecb)
