@@ -28,7 +28,6 @@ memory_region< PAGING::KB<64> >  memory::arm7_wram("ARM7 Exclusive Internal Work
 memory_region< PAGING::B<0x10400> >  memory::system_rom("System ROM", 0x00000000, 1);
 
 memory_region< PAGING::KB<8> >   memory::registers9_1("IO registers 9.0", 0x00000000, 1); // 0x04000000
-memory_region< PAGING::B<512> >  memory::registers9_2("IO registers 9.1", 0x00000000, 1); // 0x04001000
 memory_region< PAGING::B<512> >  memory::registers9_3("IO registers 9.2", 0x00000000, 1); // 0x04100000
 
 memory_region< PAGING::KB<8> >   memory::registers7_1("IO registers 7.0", 0x00000000, 1); // 0x04000000

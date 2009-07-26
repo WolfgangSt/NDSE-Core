@@ -2,6 +2,7 @@
 #define _PHYSMEM_H_
 
 #include "MemRegion.h"
+#include "IORegs.h"
 
 // physical memory
 struct memory 
@@ -49,7 +50,6 @@ struct memory
 	// arm9 ioregs
 	typedef memory_region< PAGING::KB<8> > REGISTERS9_1; // arm9 io regs
 	static REGISTERS9_1                    registers9_1; // 0x04000000 - 0x04002000
-	static memory_region< PAGING::B<512> > registers9_2; // 0x04001000
 	static memory_region< PAGING::B<512> > registers9_3; // 0x04100000
 
 	// arm7 ioregs
