@@ -55,6 +55,8 @@ unsigned long FASTCALL_IMPL(HLE<T>::load32(unsigned long addr))
 	memory_block *b = memory_map<T>::addr2page(addr);
 	if (b->flags & (memory_block::PAGE_INVALID | memory_block::PAGE_READPROT))
 		invalid_read(addr);
+	if (b->readcb)
+		b->readcb(b, addr);
 	return *(unsigned long*)(&b->mem[addr & (PAGING::ADDRESS_MASK & (~3))]);
 }
 
@@ -64,6 +66,8 @@ unsigned long FASTCALL_IMPL(HLE<T>::load16u(unsigned long addr))
 	memory_block *b = memory_map<T>::addr2page(addr);
 	if (b->flags & (memory_block::PAGE_INVALID | memory_block::PAGE_READPROT))
 		invalid_read(addr);
+	if (b->readcb)
+		b->readcb(b, addr);
 	return *(unsigned short*)(&b->mem[addr & (PAGING::ADDRESS_MASK & (~1))]);
 }
 
@@ -73,6 +77,8 @@ unsigned long FASTCALL_IMPL(HLE<T>::load16s(unsigned long addr))
 	memory_block *b = memory_map<T>::addr2page(addr);
 	if (b->flags & (memory_block::PAGE_INVALID | memory_block::PAGE_READPROT))
 		invalid_read(addr);
+	if (b->readcb)
+		b->readcb(b, addr);
 	return *(signed short*)(&b->mem[addr & (PAGING::ADDRESS_MASK & (~1))]);
 }
 
@@ -82,7 +88,40 @@ unsigned long FASTCALL_IMPL(HLE<T>::load8u(unsigned long addr))
 	memory_block *b = memory_map<T>::addr2page(addr);
 	if (b->flags & (memory_block::PAGE_INVALID | memory_block::PAGE_READPROT))
 		invalid_read(addr);
+	if (b->readcb)
+		b->readcb(b, addr);
 	return *(unsigned char*)(&b->mem[addr & (PAGING::ADDRESS_MASK)]);
+}
+
+template <typename T>
+void HLE<T>::load32_array(unsigned long addr, int num, unsigned long *data)
+{
+	//logging<_ARM9>::logf("loading %i words from %08x", num, addr);
+	const unsigned long *end = data + num;
+	// load first page
+
+	addr &= ~3;
+	memory_block *b = memory_map<T>::addr2page(addr);
+	if (b->flags & (memory_block::PAGE_INVALID | memory_block::PAGE_READPROT))
+		return invalid_read(addr);
+	unsigned long subaddr = addr & PAGING::ADDRESS_MASK;
+	while (data != end)
+	{
+		if (b->readcb)
+			b->readcb(b, (addr & (~PAGING::ADDRESS_MASK)) + subaddr);
+		*data = *(unsigned long*)(&b->mem[subaddr]); // load word
+		data++;       // advance data 
+		subaddr += 4; // advance in block
+		if (subaddr == PAGING::SIZE) // reached end of page?
+		{
+			// load next page
+			addr += PAGING::SIZE;
+			b = memory_map<T>::addr2page(addr);
+			if (b->flags & (memory_block::PAGE_INVALID | memory_block::PAGE_READPROT))
+				return invalid_read(addr & ~PAGING::ADDRESS_MASK);
+			subaddr = 0;
+		}
+	}
 }
 
 
@@ -152,32 +191,6 @@ void HLE<T>::store32_array(unsigned long addr, int num, unsigned long *data)
 	b->dirty();
 }
 
-template <typename T>
-void HLE<T>::load32_array(unsigned long addr, int num, unsigned long *data)
-{
-	//logging<_ARM9>::logf("loading %i words from %08x", num, addr);
-	const unsigned long *end = data + num;
-	// load first page
-	memory_block *b = memory_map<T>::addr2page(addr);
-	if (b->flags & (memory_block::PAGE_INVALID | memory_block::PAGE_READPROT))
-		return invalid_read(addr);
-	unsigned long subaddr = addr & (PAGING::ADDRESS_MASK & (~3));
-	while (data != end)
-	{
-		*data = *(unsigned long*)(&b->mem[subaddr]); // load word
-		data++;       // advance data 
-		subaddr += 4; // advance in block
-		if (subaddr == PAGING::SIZE) // reached end of page?
-		{
-			// load next page
-			addr += PAGING::SIZE;
-			b = memory_map<T>::addr2page(addr);
-			if (b->flags & (memory_block::PAGE_INVALID | memory_block::PAGE_READPROT))
-				return invalid_read(addr & ~PAGING::ADDRESS_MASK);
-			subaddr = 0;
-		}
-	}
-}
 
 template <typename T> struct dirty_flag {};
 template <> struct dirty_flag<_ARM9> { enum { VALUE = memory_block::PAGE_DIRTY_J9 }; };
@@ -227,10 +240,7 @@ char* FASTCALL_IMPL(HLE<T>::compile_and_link_branch_a_real(unsigned long addr))
 // highlevel yet ...
 template <typename T> char HLE<T>::compile_and_link_branch_a[7];
 template <typename T> char HLE<T>::invoke_arm[19];
-
-
-// might need patching under nix
-typedef void (FASTCALL(*invoke_fun))(unsigned long, void*);
+template <typename T> char HLE<T>::read_tsc[3];
 
 // if possible remove the wrapping!
 template <typename T>
@@ -274,6 +284,25 @@ void HLE<T>::init()
 		std::string str = s.str();
 		memcpy( data, str.data(), str.size() );		
 	}
+
+	{
+		std::ostringstream s;
+		char *data = HLE<T>::read_tsc;		
+		s << "\x8B\xC3"; // mov eax, ebx
+		s << '\xC3';     // ret
+		std::string str = s.str();
+		memcpy( data, str.data(), str.size() );		
+	}
+	
+	loadstore.store32 = store32;
+	loadstore.store16 = store16;
+	loadstore.store8 = store8;
+	loadstore.store32_array = store32_array;
+	loadstore.load32 = load32;
+	loadstore.load16u = load16u;
+	loadstore.load16s = load16s;
+	loadstore.load8u = load8u;
+	loadstore.load32_array = load32_array;
 }
 
 #undef OFFSET
@@ -508,7 +537,9 @@ template <typename T> void HLE<T>::delay()
 {
 	// does a tiny busy idle loop
 	// for R0*4 tacts
-	//QPseudoThread::do_sleep(10);
+
+	// delays for approx r0/8388 msecs
+	QPseudoThread::do_sleep(processor<T>::context.regs[0] / 8388);
 }
 
 template <typename T> void HLE<T>::wait_vblank()

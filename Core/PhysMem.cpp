@@ -5,7 +5,7 @@
 
 memory_region< PAGING >          memory::null_region("(NULL)",                0x0000FF00, 0);
 memory_region< PAGING >          memory::hle_bios("HLE BIOS", _RGB(199,199,23), 1);        // 0xEFEF0000
-
+memory_region< PAGING >          memory::arm9_ipc("ARM9 IPC Transfer Region", 0x00000000, 1);
 
 memory_region< PAGING::KB<64> >  memory::accessory_ram("DS Accessory RAM",    0x00000000, 1); 
 memory_region< PAGING::KB<32> >  memory::accessory_rom("DS Accessorry ROM",   0x00000000, 1); // 32MB?
@@ -114,6 +114,7 @@ template <> void memory::initializer<_ARM9>::initialize_mapping()
 	memory_map<_ARM9>::map_region( &oam_ab,        PAGING::PAGES<0x07000000>::PAGE );
 	memory_map<_ARM9>::map_region( &palettes,      PAGING::PAGES<0x05000000>::PAGE );
 	memory_map<_ARM9>::map_region( &registers9_1,  PAGING::PAGES<0x04000000>::PAGE );
+	memory_map<_ARM9>::map_region( &arm9_ipc,      PAGING::PAGES<0x04100000>::PAGE );
 
 	memory_map<_ARM9>::map_region( &ram,           PAGING::REGION(0x02000000, 0x03000000) );
 };

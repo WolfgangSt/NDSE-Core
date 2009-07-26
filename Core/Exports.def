@@ -8,7 +8,6 @@ EXPORTS
 	ARM9_GetPage
 	
 	MEM_GetVRAM
-	MEM_GetRegionInfo
 	MEM_FlushPage
 	
 	UTIL_GetCRC16

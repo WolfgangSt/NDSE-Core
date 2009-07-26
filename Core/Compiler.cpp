@@ -11,6 +11,9 @@
 
 #include "osdep.h"
 
+// cycle counter requires SSE
+#define CLOCK_CYCLES
+
 
 ////////////////////////////////////////////////////////////////////////////////
 // IMPORTANT BUGS
@@ -124,10 +127,8 @@ void compiler::load_flags()
 	s << "\xD0\xC8";                            // ror al, 1
 	s << '\x9E';                                // sahf
 
-	/*
-	s << "\xFF\x75" << (char)OFFSET(x86_flags); // push [ebp+x86_flags]
-	s << '\x9D';                                // popfd
-	*/
+	//s << "\xFF\x75" << (char)OFFSET(x86_flags); // push [ebp+x86_flags]
+	//s << '\x9D';                                // popfd
 }
 
 
@@ -398,9 +399,9 @@ void compiler::generic_load_x()
 {
 	switch (ctx.extend_mode)
 	{
-	case EXTEND_MODE::H:  CALLP(load16u); break;
-	//case EXTEND_MODE::SB: CALLP(load8s); break; // special instruction ...
-	case EXTEND_MODE::SH: CALLP(load16s); break; // special instruction ...
+	case EXTEND_MODE::H:  CALLP(loadstore->load16u); break;
+	//case EXTEND_MODE::SB: CALLP(loadstore->load8s); break; // special instruction ...
+	case EXTEND_MODE::SH: CALLP(loadstore->load16s); break; // special instruction ...
 	default:
 		s << DEBUG_BREAK;
 	}
@@ -410,9 +411,9 @@ void compiler::generic_store_x()
 {
 	switch (ctx.extend_mode)
 	{
-	case EXTEND_MODE::H:  CALLP(store16); break;
-	//case EXTEND_MODE::SB: CALLP(store8s); break; // special instruction ...
-	//case EXTEND_MODE::SH: CALLP(store16s); break; // special instruction ...
+	case EXTEND_MODE::H:  CALLP(loadstore->store16); break;
+	//case EXTEND_MODE::SB: CALLP(loadstore->store8s); break; // special instruction ...
+	//case EXTEND_MODE::SH: CALLP(loadstore->store16s); break; // special instruction ...
 	default:
 		s << DEBUG_BREAK;
 	}
@@ -493,6 +494,20 @@ void compiler::compile_instruction()
 	//unsigned long bpre = preoff;
 	//preoff = 0;
 	int flags_actual = flags_updated;
+
+	
+#ifdef CLOCK_CYCLES
+	// how to do this without updating flags?!
+	// when postpending this to a flag producing op it'd invalidate the flag
+	// when prepending it to a consuming op it invalidates too
+	s << '\x43'; // inc ebx
+	flags_actual = 0;
+
+	// might use SSE at some time ... the only way i see so far for not
+	// requiring to invalidate flags
+	//s << "\x0F\xD4\xC1"; // paddq mm0,mm1
+#endif
+
 
 	if (ctx.cond != CONDITION::AL)
 	{
@@ -616,7 +631,7 @@ void compiler::compile_instruction()
 
 	case INST::STR_I:
 		generic_store();
-		CALLP(store32)
+		CALLP(loadstore->store32)
 		generic_loadstore_postupdate_imm();		
 		break;
 	/*
@@ -632,7 +647,7 @@ void compiler::compile_instruction()
 	case INST::STR_IPW:
 		generic_store_p();
 		//s << "\x89\x4D" << (char)OFFSET(regs[ctx.rn]); // mov [ebp+rn], ecx
-		CALLP(store32)
+		CALLP(loadstore->store32)
 		generic_loadstore_postupdate_imm();	
 		break;
 	case INST::STRX_RP:
@@ -641,19 +656,19 @@ void compiler::compile_instruction()
 		break;
 	case INST::STRB_IP:
 		generic_store_p();
-		CALLP(store8) 
+		CALLP(loadstore->store8) 
 		break;
 	case INST::STR_IP:
 		generic_store_p();
-		CALLP(store32) 
+		CALLP(loadstore->store32) 
 		break;
 	case INST::STR_RP:
 		generic_store_r();
-		CALLP(store32) 
+		CALLP(loadstore->store32) 
 		break;
 	case INST::STRB_RP:
 		generic_store_r();
-		CALLP(store8) 
+		CALLP(loadstore->store8) 
 		break;
 
 
@@ -661,30 +676,30 @@ void compiler::compile_instruction()
 	case INST::LDR_I:
 		generic_load_post();
 		generic_loadstore_postupdate_imm();
-		CALLP(load32)
+		CALLP(loadstore->load32)
 		s << "\x89\x45" << (char)OFFSET(regs[ctx.rd]);  // mov [ebp+rd], eax
 		break;
 	// Pre index loads
 	case INST::LDR_IP:
 		generic_load();
-		CALLP(load32)
+		CALLP(loadstore->load32)
 		//break_if_pc(ctx.rd);                  // todo handle rd = PC
 		store_rd_eax();
 		break;
 	case INST::LDR_RP:
 		generic_load_r();
-		CALLP(load32) 
+		CALLP(loadstore->load32) 
 		s << "\x89\x45" << (char)OFFSET(regs[ctx.rd]);  // mov [ebp+rd], eax
 		break;
 	case INST::LDRB_IP:
 		break_if_pc(ctx.rd);                  // todo handle rd = PC
 		generic_load();
-		CALLP(load8u)
+		CALLP(loadstore->load8u)
 		s << "\x89\x45" << (char)OFFSET(regs[ctx.rd]);  // mov [ebp+rd], eax
 		break;
 	case INST::LDRB_RP: 
 		generic_load_r();
-		CALLP(load8u)
+		CALLP(loadstore->load8u)
 		s << "\x89\x45" << (char)OFFSET(regs[ctx.rd]);  // mov [ebp+rd], eax
 		break;
 	case INST::LDRX_IP:
@@ -1013,7 +1028,7 @@ void compiler::compile_instruction()
 			write( s, ctx.imm );                           // imm
 		} else
 		{
-			load_ecx_reg_or_pc(ctx.rn, -ctx.imm);
+			load_ecx_reg_or_pc(ctx.rn, (unsigned long)(-(signed long)ctx.imm));
 			s << "\x89\x4D" << (char)OFFSET(regs[ctx.rd]); // mov [ebp+rd], ecx
 		}
 		if (ctx.flags & disassembler::S_BIT)
@@ -1223,7 +1238,7 @@ void compiler::compile_instruction()
 			case 1: // simple 32bit store
 				load_ecx_single();      // load ecx, start_address
 				s << "\x8B\x55" << (char)OFFSET(regs[highest]); // mov edx, dword ptr [ebp+R_highest]
-				CALLP(store32) // dont use array store but simple store here!
+				CALLP(loadstore->store32) // dont use array store but simple store here!
 				break;
 			default:
 				unsigned int pop = 0;
@@ -1267,7 +1282,7 @@ void compiler::compile_instruction()
 				
 				// determine start address
 				push_multiple(num);
-				CALLP(store32_array) 
+				CALLP(loadstore->store32_array) 
 				s << "\x83\xC4" << (char)((pop+3) << 2);       // add esp, num*4
 			}
 
@@ -1293,7 +1308,7 @@ void compiler::compile_instruction()
 				break;
 			case 1: // simple 32bit store
 				load_ecx_single();      // load ecx, start_address
-				CALLP(load32) // dont use array load but simple load here!
+				CALLP(loadstore->load32) // dont use array load but simple load here!
 				s << "\x89\x45" << (char)OFFSET(regs[highest]); // mov [ebp+R_highest], eax
 				break;
 			default:
@@ -1309,7 +1324,7 @@ void compiler::compile_instruction()
 					}
 					s << '\x6A' << (char)num;   // push num
 					push_multiple(num);
-					CALLP(load32_array) 
+					CALLP(loadstore->load32_array) 
 					s << "\x83\xC4\x0C";        // add esp, 3*4
 				} else
 				{
@@ -1318,7 +1333,7 @@ void compiler::compile_instruction()
 					s << '\x54';                         // push esp
 					s << '\x6A' << (char)num;            // push num
 					push_multiple(num);
-					CALLP(load32_array) 
+					CALLP(loadstore->load32_array) 
 					s << "\x83\xC4\x0C";                 // add esp, 3*4
 
 										

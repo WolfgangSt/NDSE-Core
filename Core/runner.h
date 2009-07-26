@@ -228,7 +228,11 @@ template <typename T> struct runner
 		exception_context<T>::context.ctx = f->context;
 		if (initialized)
 			breakpoints_base<T>::trigger( resolve_eip_v2<T>() );
-		else initialized = true;
+		else
+		{
+			initialized = true;
+			CONTEXT_EBX(f->context.uc_mcontext) = 0;
+		}
 		if (skipsrc)
 			if (skipcb())
 				return;

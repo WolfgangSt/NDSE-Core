@@ -13,6 +13,10 @@ private:
 	static void process9();
 	static void process7();
 	static void io_write9(memory_block *b);
+	static void io_read9(memory_block *b, unsigned long addr);
+	static void io_readipc9(memory_block *b, unsigned long addr);
+
+
 	static void io_write7(memory_block *b);
 
 public:

@@ -3,6 +3,7 @@
 
 #include <map>
 #include "Mem.h"
+#include "loadstore.h"
 //#include "runner.h"
 //#include "Compiler.h"
 
@@ -21,7 +22,8 @@ enum {
 	NOCASH_DEBUGOUT = 0x6464,
 	NOCASH_EXT_HALT = 0x9090,
 	NOCASH_EXT_VERS = 0x5344,
-	NOCASH_EXT_SCRI = 0x3841
+	NOCASH_EXT_SCRI = 0x3841,
+	NOCASH_EXT_RTSC = 0x8312
 };
 
 enum { NDSE_VERSION = 1 };
@@ -56,6 +58,10 @@ struct stream_debugstring
 		}
 	}
 };
+
+// might need patching under nix
+typedef void (FASTCALL(*invoke_fun))(unsigned long, void*);
+typedef unsigned long (FASTCALL(*readtsc_fun))();
 
 struct emulation_context;
 template <typename T>
@@ -93,6 +99,8 @@ public:
 
 	static char compile_and_link_branch_a[7];
 	static char invoke_arm[19];
+	static char read_tsc[3];
+	static load_stores loadstore;
 
 	static void FASTCALL(is_priviledged());
 	static void FASTCALL(remap_tcm(unsigned long value, unsigned long mode));
@@ -186,6 +194,11 @@ public:
 				processor<T>::context.regs[0] = 0;
 				break;
 			}
+		case NOCASH_EXT_RTSC:
+			{
+				processor<T>::context.regs[0] = ((readtsc_fun)&read_tsc)();
+				break;
+			}
 		default:
 			logging<T>::logf("Unknown Debug Magic at %08X (%04X %04X)", addr, magic, flags);
 		}
@@ -194,6 +207,7 @@ public:
 	static void dump_btab();
 };
 template <typename T> unsigned long HLE<T>::last_halt = 0;
+template <typename T> load_stores HLE<T>::loadstore;
 
 struct symbols
 {

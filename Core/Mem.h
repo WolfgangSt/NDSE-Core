@@ -77,7 +77,7 @@ template <> compiled_block<IS_THUMB>* &compile_info::get<IS_THUMB>() { return th
 template <> compiled_block<IS_ARM>* &compile_info::get<IS_ARM>()   { return arm; };
 */
 
-
+struct memory_region_base;
 struct memory_block /* final, do not inherit! */
 {
 	enum {
@@ -95,6 +95,7 @@ struct memory_block /* final, do not inherit! */
 	};
 
 	typedef void (*mem_callback)(memory_block *block);  
+	typedef void (*read_callback)(memory_block *block, unsigned long addr);
 
 	unsigned long flags;
 	// todo: blocks for thumb modes
@@ -102,6 +103,8 @@ struct memory_block /* final, do not inherit! */
 	compile_info arm7;
 	compile_info arm9;
 	mem_callback writecb;
+	read_callback readcb;
+	memory_region_base *base;
 	unsigned long recompiles;
 
 	template <typename T, typename U> compiled_block<U>* &get_jit();

@@ -8,6 +8,7 @@ struct memory
 {
 	static memory_region< PAGING >          null_region;
 	static memory_region< PAGING >          hle_bios;    // 0xEFEF0000
+	static memory_region< PAGING >          arm9_ipc;    // 0x04100000 ipc transfer region
 
 	static memory_region< PAGING::KB<64> >  accessory_ram; 
 	static memory_region< PAGING::KB<32> >  accessory_rom; // 32MB?
@@ -61,14 +62,6 @@ struct memory
 	static memory_block* get_nullblock()
 	{
 		return &null_region.blocks[0];
-	}
-
-	static const memory_region_base* get_region_for(memory_block *page)
-	{
-		for (int i = 0; i < NUM_REGIONS; i++)
-			if (regions[i]->page_in_region( page ))
-				return regions[i];
-		return &null_region;
 	}
 
 	template <typename T> struct initializer { static void initialize_mapping(); };

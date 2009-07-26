@@ -93,9 +93,9 @@ private:
 		{
 			memory_block *p = map[page];
 
-			const memory_region_base *region_p = memory::get_region_for( p );
+			const memory_region_base *region_p = p->base;
 			size_t addr_p = region_p->address( p );
-			const memory_region_base *region_q = memory::get_region_for( block );
+			const memory_region_base *region_q = block->base;
 			size_t addr_q = region_q->address( block );
 			
 			logging<T>::logf(  "Remapping at 0x%08X from <%s>:%X to <%s>:%X\n", 

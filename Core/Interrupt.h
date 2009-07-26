@@ -98,30 +98,30 @@ template <> inline void interrupt<_ARM9>::poll_process()
 		return;
 	
 	unsigned long intr = (unsigned long)_InterlockedExchange(&signaled, 0);
-	
-	intr = intr & IE;
-	if (intr)
-	{
-		IF = intr;
-		// wstack is 0x100 size and aligned by 0x100
-		// as page size is 0x200 minimum this will always be within one memory_block
-		memory_block *b = &memory::data_tcm.blocks[0x3F00 >> PAGING::SIZE_BITS];
-		wstack *istack = (wstack*)(b->mem + (0x3F00 & PAGING::ADDRESS_MASK));
 
-		unsigned long addr = istack->irq_handler;
-		logging<_ARM9>::logf("Interrupt to %08X", addr); 
-		emulation_context &ctx = processor<_ARM9>::context;
-		//unsigned long lr = ctx.regs[14];
-		//unsigned long pc = ctx.regs[15];
-		emulation_context backup = ctx;
-		
-		ctx.regs[15] = addr;
-		inside = true;
-		HLE<_ARM9>::invoke(addr, &ctx);
-		inside = false;
-		
-		ctx = backup;
+	emulation_context &ctx = processor<_ARM9>::context;
+	emulation_context backup = ctx;
+	for (unsigned long mask = 1; mask; mask <<= 1)
+	{
+		unsigned long itr = intr & mask & IE;
+		if (itr)
+		{
+			IF = itr;
+			// wstack is 0x100 size and aligned by 0x100
+			// as page size is 0x200 minimum this will always be within one memory_block
+			memory_block *b = &memory::data_tcm.blocks[0x3F00 >> PAGING::SIZE_BITS];
+			wstack *istack = (wstack*)(b->mem + (0x3F00 & PAGING::ADDRESS_MASK));
+
+			unsigned long addr = istack->irq_handler;
+			//logging<_ARM9>::logf("Interrupt to %08X", addr); 
+						
+			ctx.regs[15] = addr;
+			inside = true;
+			HLE<_ARM9>::invoke(addr, &ctx);
+			inside = false;
+		}
 	}
+	ctx = backup;
 }
 
 // _ARM7 hardcoded here
@@ -158,10 +158,8 @@ template <> inline void interrupt<_ARM7>::poll_process()
 		wstack *istack = (wstack*)(b->mem + (0xFF00 & PAGING::ADDRESS_MASK));
 
 		unsigned long addr = istack->irq_handler;
-		logging<_ARM7>::logf("Interrupt to %08X", addr); 
+		//logging<_ARM7>::logf("Interrupt to %08X", addr); 
 		emulation_context &ctx = processor<_ARM7>::context;
-		//unsigned long lr = ctx.regs[14];
-		//unsigned long pc = ctx.regs[15];
 		emulation_context backup = ctx;
 		
 		

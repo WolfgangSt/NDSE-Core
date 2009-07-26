@@ -88,7 +88,6 @@ IMPORT bool STDCALL UTIL_LoadFile(const char *filename, util::load_result *resul
 IMPORT memory_region_base* STDCALL MEM_GetVRAM(int bank);
 IMPORT unsigned long STDCALL PageSize();
 IMPORT unsigned long STDCALL DebugMax();
-IMPORT const memory_region_base* STDCALL MEM_GetRegionInfo(memory_block *p);
 IMPORT void STDCALL DEFAULT_Log(log_callback cb);
 
 IMPORT const char* STDCALL DEBUGGER_GetSymbol(void *addr);

@@ -94,11 +94,6 @@ memory_block* STDCALL ARM9_GetPage(unsigned long addr)
 	return memory_map<_ARM9>::addr2page(addr);
 }
 
-const memory_region_base* STDCALL MEM_GetRegionInfo(memory_block *p)
-{
-	return memory::get_region_for( p );
-}
-
 void STDCALL MEM_FlushPage(memory_block *p)
 {
 	p->flush();
