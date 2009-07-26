@@ -293,16 +293,6 @@ void HLE<T>::init()
 		std::string str = s.str();
 		memcpy( data, str.data(), str.size() );		
 	}
-	
-	loadstore.store32 = store32;
-	loadstore.store16 = store16;
-	loadstore.store8 = store8;
-	loadstore.store32_array = store32_array;
-	loadstore.load32 = load32;
-	loadstore.load16u = load16u;
-	loadstore.load16s = load16s;
-	loadstore.load8u = load8u;
-	loadstore.load32_array = load32_array;
 }
 
 #undef OFFSET

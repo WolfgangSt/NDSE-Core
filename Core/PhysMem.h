@@ -2,7 +2,6 @@
 #define _PHYSMEM_H_
 
 #include "MemRegion.h"
-#include "IORegs.h"
 
 // physical memory
 struct memory 

@@ -88,7 +88,17 @@ private:
 	void epilogue(char *&mem, size_t &size);
 	std::ostringstream::pos_type tellp();
 
-	load_stores* loadstore;
+
+	void* store32;
+	void* store16;
+	void* store8;
+	void* store32_array;
+	void* load32;
+	void* load16u;
+	void* load16s;
+	void* load8u;
+	void* load32_array;
+	
 	void* pushcallstack;
 	void* popcallstack;
 	void* compile_and_link_branch_a;
@@ -103,9 +113,8 @@ public:
 		INST_BITS = U::INSTRUCTION_SIZE_LG2;
 	}
 	
-	template <typename T> void init_cpu(load_stores *ls)
+	template <typename T> void init_cpu()
 	{
-		/*
 		store32 = HLE<T>::store32;
 		store16 = HLE<T>::store16;
 		store8 = HLE<T>::store8;
@@ -116,9 +125,7 @@ public:
 		load16s = HLE<T>::load16s;
 		load8u = HLE<T>::load8u;
 		load32_array = HLE<T>::load32_array;
-		*/
 
-		loadstore = ls;
 		pushcallstack = HLE<T>::pushcallstack;
 		popcallstack = HLE<T>::popcallstack;
 
@@ -137,7 +144,7 @@ public:
 		disassembler d;
 		typename U::T* p = (typename U::T*)cb.block->mem;
 		c.init_mode<U>();
-		c.init_cpu<T>(cb.block->base->ls[T::VALUE]);
+		c.init_cpu<T>();
 
 		// decode first instruction
 		d.decode<U>( *p++, 0 ); // ,0 => use relative addressing

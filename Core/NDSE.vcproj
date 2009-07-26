@@ -372,10 +372,6 @@
 			Name="Memory"
 			>
 			<File
-				RelativePath=".\loadstore.h"
-				>
-			</File>
-			<File
 				RelativePath=".\Mem.cpp"
 				>
 			</File>
@@ -402,6 +398,10 @@
 					RelativePath=".\MemRegionBase.h"
 					>
 				</File>
+			</Filter>
+			<Filter
+				Name="IO Registers"
+				>
 			</Filter>
 		</Filter>
 		<Filter

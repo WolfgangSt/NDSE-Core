@@ -3,7 +3,6 @@
 
 #include <map>
 #include "Mem.h"
-#include "loadstore.h"
 //#include "runner.h"
 //#include "Compiler.h"
 
@@ -11,7 +10,6 @@
 #define FASTCALL(x) __fastcall x
 #define FASTCALL_IMPL(x) FASTCALL(x)
 #define NAKEDCALL_IMPL(x) __declspec(naked) __fastcall x
-
 #else
 #define FASTCALL(x) x; __attribute__((fastcall))
 #define FASTCALL_IMPL(x) __attribute__((fastcall)) x
@@ -100,7 +98,6 @@ public:
 	static char compile_and_link_branch_a[7];
 	static char invoke_arm[19];
 	static char read_tsc[3];
-	static load_stores loadstore;
 
 	static void FASTCALL(is_priviledged());
 	static void FASTCALL(remap_tcm(unsigned long value, unsigned long mode));
@@ -207,7 +204,6 @@ public:
 	static void dump_btab();
 };
 template <typename T> unsigned long HLE<T>::last_halt = 0;
-template <typename T> load_stores HLE<T>::loadstore;
 
 struct symbols
 {
