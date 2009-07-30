@@ -423,6 +423,18 @@
 					>
 				</File>
 			</Filter>
+			<Filter
+				Name="DMA"
+				>
+				<File
+					RelativePath=".\dma.cpp"
+					>
+				</File>
+				<File
+					RelativePath=".\dma.h"
+					>
+				</File>
+			</Filter>
 		</Filter>
 		<Filter
 			Name="CPU"
