@@ -9,39 +9,39 @@ const char* INST::strings[] = {
 	"UNKNOWN",
 
 	// missing U-BIT (-) for register based addressing
-	"STR%c %Rd,[%Rn],#0x%I",   // OK 
-	"LDR%c %Rd,[%Rn],#0x%I",   // OK
-	"STR%cT %Rd,[%Rn],#0x%I",  // OK
-	"LDR%cT %Rd,[%Rn],#0x%I",  // OK 
-	"STR%cB %Rd,[%Rn],#0x%I",  // OK
-	"LDR%cB %Rd,[%Rn],#0x%I",  // OK
-	"STR%cBT [%Rd],%Rn,#0x%I",  // OK
-	"LDR%cBT [%Rd],%Rn,#0x%I",  // OK
-	"STR%c %Rd,[%Rn,#0x%I]",   // OK 
-	"LDR%c %Rd,[%Rn,#0x%I]",   // OK
-	"STR%c %Rd,[%Rn,#0x%I]!",  // OK 
-	"LDR%c %Rd,[%Rn,#0x%I]!",  // OK
-	"STR%cB %Rd,[%Rn,#0x%I]",  // OK
-	"LDR%cB %Rd,[%Rn,#0x%I]",  // OK
-	"STR%cB %Rd,[%Rn,#0x%I]!", // OK
-	"LDR%cB %Rd,[%Rn,#0x%I]!", // OK
+	"STR%c %Rd,[%-%Rn],#0x%I",   // OK 
+	"LDR%c %Rd,[%-%Rn],#0x%I",   // OK
+	"STR%cT %Rd,[%-%Rn],#0x%I",  // OK
+	"LDR%cT %Rd,[%-%Rn],#0x%I",  // OK 
+	"STR%cB %Rd,[%-%Rn],#0x%I",  // OK
+	"LDR%cB %Rd,[%-%Rn],#0x%I",  // OK
+	"STR%cBT [%Rd],%-%Rn,#0x%I",  // OK
+	"LDR%cBT [%Rd],%-%Rn,#0x%I",  // OK
+	"STR%c %Rd,[%-%Rn,#0x%I]",   // OK 
+	"LDR%c %Rd,[%-%Rn,#0x%I]",   // OK
+	"STR%c %Rd,[%-%Rn,#0x%I]!",  // OK 
+	"LDR%c %Rd,[%-%Rn,#0x%I]!",  // OK
+	"STR%cB %Rd,[%-%Rn,#0x%I]",  // OK
+	"LDR%cB %Rd,[%-%Rn,#0x%I]",  // OK
+	"STR%cB %Rd,[%-%Rn,#0x%I]!", // OK
+	"LDR%cB %Rd,[%-%Rn,#0x%I]!", // OK
 
-	"STR%c %Rd,[%Rn],%Rm %S#0x%I",
-	"LDR%c %Rd,[%Rn],%Rm %S#0x%I",
-	"STR%cT %Rd,[%Rn],%Rm %S#0x%I",
-	"LDR%cT %Rd,[%Rn],%Rm %S#0x%I",
-	"STR%cB %Rd,[%Rn],%Rm %S#0x%I",
-	"LDR%cB %Rd,[%Rn],%Rm %S#0x%I",
-	"STR%cBT %Rd,[%Rn],%Rm %S#0x%I",
-	"LDR%cBT %Rd,[%Rn],%Rm %S#0x%I",
-	"STR%c %Rd,[%Rn,%Rm %S#0x%I]",
-	"LDR%c %Rd,[%Rn,%Rm %S#0x%I]",
-	"STR%c %Rd,[%Rn,%Rm %S#0x%I]!",
-	"LDR%c %Rd,[%Rn,%Rm %S#0x%I]!",
-	"STR%cB %Rd,[%Rn,%Rm %S#0x%I]",
-	"LDR%cB %Rd,[%Rn,%Rm %S#0x%I]",
-	"STR%cB %Rd,[%Rn,%Rm %S#0x%I]!",
-	"LDR%cB %Rd,[%Rn,%Rm %S#0x%I]!",
+	"STR%c %Rd,[%-%Rn],%Rm %S#0x%I",
+	"LDR%c %Rd,[%-%Rn],%Rm %S#0x%I",
+	"STR%cT %Rd,[%-%Rn],%Rm %S#0x%I",
+	"LDR%cT %Rd,[%-%Rn],%Rm %S#0x%I",
+	"STR%cB %Rd,[%-%Rn],%Rm %S#0x%I",
+	"LDR%cB %Rd,[%-%Rn],%Rm %S#0x%I",
+	"STR%cBT %Rd,[%-%Rn],%Rm %S#0x%I",
+	"LDR%cBT %Rd,[%-%Rn],%Rm %S#0x%I",
+	"STR%c %Rd,[%-%Rn,%Rm %S#0x%I]",
+	"LDR%c %Rd,[%-%Rn,%Rm %S#0x%I]",
+	"STR%c %Rd,[%-%Rn,%Rm %S#0x%I]!",
+	"LDR%c %Rd,[%-%Rn,%Rm %S#0x%I]!",
+	"STR%cB %Rd,[%-%Rn,%Rm %S#0x%I]",
+	"LDR%cB %Rd,[%-%Rn,%Rm %S#0x%I]",
+	"STR%cB %Rd,[%-%Rn,%Rm %S#0x%I]!",
+	"LDR%cB %Rd,[%-%Rn,%Rm %S#0x%I]!",
 
 	"AND%c%s %Rd,%Rn,#0x%I",
 	"EOR%c%s %Rd,%Rn,#0x%I",
@@ -114,27 +114,27 @@ const char* INST::strings[] = {
 	"MRC%c %Cp,%C1,%Rd,%CRn,%CRm,%C2",
 	"MCR%c %Cp,%C1,%Rd,%CRn,%CRm,%C2",
 
-	"STM%c%M %Rn,{%RL}",
-	"LDM%c%M %Rn,{%RL}",
-	"STM%c%M %Rn!,{%RL}",
-	"LDM%c%M %Rn!,{%RL}",
+	"STM%c%M %Rn,{%RL}%^",
+	"LDM%c%M %Rn,{%RL}%^",
+	"STM%c%M %Rn!,{%RL}%^",
+	"LDM%c%M %Rn!,{%RL}%^",
 
-	"STR%c%E %Rd,[%Rn],#0x%I",
-	"LDR%c%E %Rd,[%Rn],#0x%I",
-	"STR%c%E %Rd,[%Rn],#0x%I!",
-	"LDR%c%E %Rd,[%Rn],#0x%I!",
-	"STR%c%E %Rd,[%Rn,#0x%I]",
-	"LDR%c%E %Rd,[%Rn,#0x%I]",
-	"STR%c%E %Rd,[%Rn,#0x%I]!",
-	"LDR%c%E %Rd,[%Rn,#0x%I]!",
-	"STR%c%E %Rd,[%Rn],%Rm",
-	"LDR%c%E %Rd,[%Rn],%Rm",
-	"STR%c%E %Rd,[%Rn],%Rm!",
-	"LDR%c%E %Rd,[%Rn],%Rm!",
-	"STR%c%E %Rd,[%Rn,%Rm]",
-	"LDR%c%E %Rd,[%Rn,%Rm]",
-	"STR%c%E %Rd,[%Rn,%Rm]!",
-	"LDR%c%E %Rd,[%Rn,%Rm]!",
+	"STR%c%E %Rd,[%-%Rn],#0x%I",
+	"LDR%c%E %Rd,[%-%Rn],#0x%I",
+	"STR%c%E %Rd,[%-%Rn],#0x%I!",
+	"LDR%c%E %Rd,[%-%Rn],#0x%I!",
+	"STR%c%E %Rd,[%-%Rn,#0x%I]",
+	"LDR%c%E %Rd,[%-%Rn,#0x%I]",
+	"STR%c%E %Rd,[%-%Rn,#0x%I]!",
+	"LDR%c%E %Rd,[%-%Rn,#0x%I]!",
+	"STR%c%E %Rd,[%-%Rn],%Rm",
+	"LDR%c%E %Rd,[%-%Rn],%Rm",
+	"STR%c%E %Rd,[%-%Rn],%Rm!",
+	"LDR%c%E %Rd,[%-%Rn],%Rm!",
+	"STR%c%E %Rd,[%-%Rn,%Rm]",
+	"LDR%c%E %Rd,[%-%Rn,%Rm]",
+	"STR%c%E %Rd,[%-%Rn,%Rm]!",
+	"LDR%c%E %Rd,[%-%Rn,%Rm]!",
 
 	"BPRE #0x%A",
 	"MUL%c%s %Rd,%Rm,%Rs",
@@ -186,39 +186,39 @@ const char* INST::strings[] = {
 	"unknown",
 
 	// missing U-BIT (-) for register based addressing
-	"str%c %Rd,[%Rn],#0x%I",   // OK 
-	"ldr%c %Rd,[%Rn],#0x%I",   // OK
-	"str%ct %Rd,[%Rn],#0x%I",  // OK
-	"ldr%ct %Rd,[%Rn],#0x%I",  // OK 
-	"str%cb %Rd,[%Rn],#0x%I",  // OK
-	"ldr%cb %Rd,[%Rn],#0x%I",  // OK
-	"str%cbt [%Rd],%Rn,#0x%I",  // OK
-	"ldr%cbt [%Rd],%Rn,#0x%I",  // OK
-	"str%c %Rd,[%Rn,#0x%I]",   // OK 
-	"ldr%c %Rd,[%Rn,#0x%I]",   // OK
-	"str%c %Rd,[%Rn,#0x%I]!",  // OK 
-	"ldr%c %Rd,[%Rn,#0x%I]!",  // OK
-	"str%cb %Rd,[%Rn,#0x%I]",  // OK
-	"ldr%cb %Rd,[%Rn,#0x%I]",  // OK
-	"str%cb %Rd,[%Rn,#0x%I]!", // OK
-	"ldr%cb %Rd,[%Rn,#0x%I]!", // OK
+	"str%c %Rd,[%-%Rn],#0x%I",   // OK 
+	"ldr%c %Rd,[%-%Rn],#0x%I",   // OK
+	"str%ct %Rd,[%-%Rn],#0x%I",  // OK
+	"ldr%ct %Rd,[%-%Rn],#0x%I",  // OK 
+	"str%cb %Rd,[%-%Rn],#0x%I",  // OK
+	"ldr%cb %Rd,[%-%Rn],#0x%I",  // OK
+	"str%cbt [%Rd],%-%Rn,#0x%I",  // OK
+	"ldr%cbt [%Rd],%-%Rn,#0x%I",  // OK
+	"str%c %Rd,[%-%Rn,#0x%I]",   // OK 
+	"ldr%c %Rd,[%-%Rn,#0x%I]",   // OK
+	"str%c %Rd,[%-%Rn,#0x%I]!",  // OK 
+	"ldr%c %Rd,[%-%Rn,#0x%I]!",  // OK
+	"str%cb %Rd,[%-%Rn,#0x%I]",  // OK
+	"ldr%cb %Rd,[%-%Rn,#0x%I]",  // OK
+	"str%cb %Rd,[%-%Rn,#0x%I]!", // OK
+	"ldr%cb %Rd,[%-%Rn,#0x%I]!", // OK
 
-	"str%c %Rd,[%Rn],%Rm %S#0x%I",
-	"ldr%c %Rd,[%Rn],%Rm %S#0x%I",
-	"str%ct %Rd,[%Rn],%Rm %S#0x%I",
-	"ldr%ct %Rd,[%Rn],%Rm %S#0x%I",
-	"str%cb %Rd,[%Rn],%Rm %S#0x%I",
-	"ldr%cb %Rd,[%Rn],%Rm %S#0x%I",
-	"str%cbt %Rd,[%Rn],%Rm %S#0x%I",
-	"ldr%cbt %Rd,[%Rn],%Rm %S#0x%I",
-	"str%c %Rd,[%Rn,%Rm %S#0x%I]",
-	"ldr%c %Rd,[%Rn,%Rm %S#0x%I]",
-	"str%c %Rd,[%Rn,%Rm %S#0x%I]!",
-	"ldr%c %Rd,[%Rn,%Rm %S#0x%I]!",
-	"str%cb %Rd,[%Rn,%Rm %S#0x%I]",
-	"ldr%cb %Rd,[%Rn,%Rm %S#0x%I]",
-	"str%cb %Rd,[%Rn,%Rm %S#0x%I]!",
-	"ldr%cb %Rd,[%Rn,%Rm %S#0x%I]!",
+	"str%c %Rd,[%-%Rn],%Rm %S#0x%I",
+	"ldr%c %Rd,[%-%Rn],%Rm %S#0x%I",
+	"str%ct %Rd,[%-%Rn],%Rm %S#0x%I",
+	"ldr%ct %Rd,[%-%Rn],%Rm %S#0x%I",
+	"str%cb %Rd,[%-%Rn],%Rm %S#0x%I",
+	"ldr%cb %Rd,[%-%Rn],%Rm %S#0x%I",
+	"str%cbt %Rd,[%-%Rn],%Rm %S#0x%I",
+	"ldr%cbt %Rd,[%-%Rn],%Rm %S#0x%I",
+	"str%c %Rd,[%-%Rn,%Rm %S#0x%I]",
+	"ldr%c %Rd,[%-%Rn,%Rm %S#0x%I]",
+	"str%c %Rd,[%-%Rn,%Rm %S#0x%I]!",
+	"ldr%c %Rd,[%-%Rn,%Rm %S#0x%I]!",
+	"str%cb %Rd,[%-%Rn,%Rm %S#0x%I]",
+	"ldr%cb %Rd,[%-%Rn,%Rm %S#0x%I]",
+	"str%cb %Rd,[%-%Rn,%Rm %S#0x%I]!",
+	"ldr%cb %Rd,[%-%Rn,%Rm %S#0x%I]!",
 
 	"and%c%s %Rd,%Rn,#0x%I",
 	"eor%c%s %Rd,%Rn,#0x%I",
@@ -296,22 +296,22 @@ const char* INST::strings[] = {
 	"stm%c%M %Rn!,{%RL}",
 	"ldm%c%M %Rn!,{%RL}",
 
-	"str%c%E %Rd,[%Rn],#0x%I",
-	"ldr%c%E %Rd,[%Rn],#0x%I",
-	"str%c%E %Rd,[%Rn],#0x%I!",
-	"ldr%c%E %Rd,[%Rn],#0x%I!",
-	"str%c%E %Rd,[%Rn,#0x%I]",
-	"ldr%c%E %Rd,[%Rn,#0x%I]",
-	"str%c%E %Rd,[%Rn,#0x%I]!",
-	"ldr%c%E %Rd,[%Rn,#0x%I]!",
-	"str%c%E %Rd,[%Rn],%Rm",
-	"ldr%c%E %Rd,[%Rn],%Rm",
-	"str%c%E %Rd,[%Rn],%Rm!",
-	"ldr%c%E %Rd,[%Rn],%Rm!",
-	"str%c%E %Rd,[%Rn,%Rm]",
-	"ldr%c%E %Rd,[%Rn,%Rm]",
-	"str%c%E %Rd,[%Rn,%Rm]!",
-	"ldr%c%E %Rd,[%Rn,%Rm]!",
+	"str%c%E %Rd,[%-%Rn],#0x%I",
+	"ldr%c%E %Rd,[%-%Rn],#0x%I",
+	"str%c%E %Rd,[%-%Rn],#0x%I!",
+	"ldr%c%E %Rd,[%-%Rn],#0x%I!",
+	"str%c%E %Rd,[%-%Rn,#0x%I]",
+	"ldr%c%E %Rd,[%-%Rn,#0x%I]",
+	"str%c%E %Rd,[%-%Rn,#0x%I]!",
+	"ldr%c%E %Rd,[%-%Rn,#0x%I]!",
+	"str%c%E %Rd,[%-%Rn],%Rm",
+	"ldr%c%E %Rd,[%-%Rn],%Rm",
+	"str%c%E %Rd,[%-%Rn],%Rm!",
+	"ldr%c%E %Rd,[%-%Rn],%Rm!",
+	"str%c%E %Rd,[%-%Rn,%Rm]",
+	"ldr%c%E %Rd,[%-%Rn,%Rm]",
+	"str%c%E %Rd,[%-%Rn,%Rm]!",
+	"ldr%c%E %Rd,[%-%Rn,%Rm]!",
 
 	"bpre #0x%A",
 	"mul%c%s %Rd,%Rm,%Rs",
@@ -360,6 +360,7 @@ void disassembler::decode<IS_ARM>(unsigned int op, unsigned int addr)
 	ctx.op = op;
 	ctx.flags = 0;
 	ctx.addr = addr;
+	ctx.shift = SHIFT::LSL;
 	
 	decode_condition();
 	decode_instruction();
@@ -371,6 +372,7 @@ void disassembler::decode<IS_THUMB>(unsigned int op, unsigned int addr)
 	ctx.op = op & 0xFFFF;
 	ctx.flags = 0;
 	ctx.addr = addr;
+	ctx.shift = SHIFT::LSL;
 	decode_instruction_thumb();
 }
 

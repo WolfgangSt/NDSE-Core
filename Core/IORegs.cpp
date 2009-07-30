@@ -2,23 +2,9 @@
 #include "Logging.h"
 #include "Compiler.h" // for DebugBreak_
 #include "MemMap.h"
+#include "vram.h"
 
-/*
-static void remap_vmem()
-{
-	unsigned char* vramcnt = (unsigned char*)reg_at(0x240);
-	map_vcnt(vramcnt[0], 0x3, 0x18, 0); // BANK-A
-	map_vcnt(vramcnt[1], 0x3, 0x18, 1); // BANK-B
-	map_vcnt(vramcnt[2], 0x7, 0x18, 2); // BANK-C
-	map_vcnt(vramcnt[3], 0x7, 0x18, 3); // BANK-D
-	map_vcnt(vramcnt[4], 0x7, 0x00, 4); // BANK-E
-	map_vcnt(vramcnt[5], 0x7, 0x18, 5); // BANK-F
-	map_vcnt(vramcnt[6], 0x7, 0x18, 6); // BANK-G
-	//map_wcnt(vramcnt[7]); // WRAM
-	map_vcnt(vramcnt[8], 0x3, 0x00, 7); // BANK-H
-	map_vcnt(vramcnt[9], 0x3, 0x00, 8); // BANK-I
-}
-*/
+#define SILENT
 
 static void start_dma(unsigned long *base)
 {
@@ -192,6 +178,7 @@ void REGISTERS9_1::store32(unsigned long addr, unsigned long value)
 		break;
 		*/
 
+
 	case 0xB0:
 		name = "[DMA0SAD] DMA0 source address";
 		break;
@@ -282,17 +269,19 @@ void REGISTERS9_1::store32(unsigned long addr, unsigned long value)
 
 	case 0x210:
 		name = "[IE] Interrupt enable flag";
+		nolog = true;
 		break;
 	case 0x214:
 		name = "[IF] Interrupt request flag";
+		nolog = true;
 		break;
 	case 0x240:
 		name = "[VRAMCNT] RAM bank control 0";
-		//remap_v = true;
+		vram::remap();
 		break;
 	case 0x244:
 		name = "[WRAMCNT] RAM bank control 1";
-		//remap_v = true;
+		vram::remap();
 		break;
 	case 0x444:
 		name = "[MTX_PUSH] Push current matrix to stack";
@@ -308,11 +297,13 @@ void REGISTERS9_1::store32(unsigned long addr, unsigned long value)
 		name = "<Unknown>";
 	}
 
+#ifndef SILENT
 	if (!nolog)
 	{
 		logging<_DEFAULT>::logf("IO change at ARM9:%08X from %08X to %08X [%s]", 
 			addr, current, value, name);
 	}
+#endif
 	if (current != value)
 	{
 		current = value;
@@ -389,7 +380,7 @@ void REGISTERS9_1::store16(unsigned long addr, unsigned long value)
 
 	case 0x248:
 		name = "[VRAM_HI_CNT] RAM bank control 2";
-		//remap_v = true;
+		vram::remap();
 		break;
 	case 0x304:
 		name = "[POWCNT] Power control";
@@ -408,12 +399,13 @@ void REGISTERS9_1::store16(unsigned long addr, unsigned long value)
 		//DebugBreak_();
 		name = "<Unknown>";
 	}
-
+#ifndef SILENT
 	if (!nolog)
 	{
 		logging<_DEFAULT>::logf("IO change at ARM9:%08X from %04X to %04X [%s]", 
 			addr, current, value, name);
 	}
+#endif
 	if (current != (unsigned short)value)
 	{
 		current = (unsigned short)value;
@@ -479,12 +471,13 @@ void REGISTERS9_1::store8(unsigned long addr, unsigned long value)
 		logging<_DEFAULT>::logf("Store 8 not supported at %08X", addr);
 		DebugBreak_();
 	}
-
+#ifndef SILENT
 	if (!nolog)
 	{
 		logging<_DEFAULT>::logf("IO change at ARM9:%08X from %02X to %02X [%s]", 
 			addr, current, value, name);
 	}
+#endif
 	if (current != (unsigned char)value)
 	{
 		current = (unsigned char)value;
@@ -531,12 +524,13 @@ unsigned long REGISTERS9_1::load32(unsigned long addr)
 		//return current;
 		name = "<Unknown>";
 	}
-
+#ifndef SILENT
 	if (!nolog)
 	{
 		logging<_DEFAULT>::logf("IO read of ARM9:%08X = %08X [%s]", 
 			addr, current, name);
 	}
+#endif
 	return current;
 }
 
@@ -569,11 +563,13 @@ unsigned long REGISTERS9_1::load16u(unsigned long addr)
 		name = "<Unknown>";
 	}
 
+#ifndef SILENT
 	if (!nolog)
 	{
 		logging<_DEFAULT>::logf("IO read of ARM9:%08X = %04X [%s]", 
 			addr, current, name);
 	}
+#endif
 	return current;
 }
 
@@ -604,11 +600,13 @@ unsigned long REGISTERS9_1::load8u(unsigned long addr)
 		name = "<Unknown>";
 	}
 
+#ifndef SILENT
 	if (!nolog)
 	{
 		logging<_DEFAULT>::logf("IO read of ARM9:%08X = %042 [%s]", 
 			addr, current, name);
 	}
+#endif
 
 	return current;
 }

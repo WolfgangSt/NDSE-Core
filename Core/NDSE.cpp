@@ -34,6 +34,7 @@
 #include "osdep.h"
 #include "runner.h"
 #include "interrupt.h"
+#include "vram.h"
 
 
 template <typename T>
@@ -71,6 +72,7 @@ void STDCALL Init()
 	processor<_ARM7>::reset();
 	processor<_ARM9>::reset();
 	loader_elf::init();
+	vram::init();
 	io_observer::init();
 
 	InitHLE();

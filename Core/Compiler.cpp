@@ -82,6 +82,17 @@ template <typename T> void write(std::ostream &s, const T &t)
 	s.write((char*)&t, sizeof(t));
 }
 
+void compiler::store_carry()
+{
+	s << "\xD1\xD6"; // rcl esi, 1
+}
+
+void compiler::load_carry()
+{
+	s << "\xD1\xDE"; // rcr esi, 1
+}
+
+
 void compiler::load_shifter_imm()
 {
 	if (ctx.shift == SHIFT::RXX)
@@ -90,12 +101,20 @@ void compiler::load_shifter_imm()
 	switch (ctx.shift)
 	{
 	case SHIFT::LSL:
-		if (ctx.imm != 0)
-			s << "\xC1\xE0" << (char)ctx.imm; // shl eax, imm
+		if (ctx.imm == 0)
+		{
+			// carry out = carry in
+			break;
+		}
+		s << "\xC1\xE0" << (char)ctx.imm; // shl eax, imm
 		break;
 	case SHIFT::LSR:
 		if (ctx.imm == 32) // optimize => doesnt need the initial load
-			s << "\x33\xC0";                  // xor eax,eax
+			//s << "\x33\xC0";                  // xor eax,eax
+		{
+			s << "\xC1\xE8" << (char)31; // shr eax, 31
+			s << "\xC1\xE8" << (char)1;  // shr eax, 1
+		}
 		else
 			s << "\xC1\xE8" << (char)ctx.imm; // shr eax, imm
 		break;
@@ -105,7 +124,7 @@ void compiler::load_shifter_imm()
 			if (ctx.imm == 32)
 			{
 				s << "\xC1\xF8" << (char)31; // sar eax, 31
-				//s << "\xC1\xF8" << (char)1;  // sar eax, 1
+				s << "\xC1\xF8" << (char)1;  // sar eax, 1
 			} else
 			{
 				s << "\xC1\xF8" << (char)ctx.imm; // sar eax, imm
@@ -122,6 +141,7 @@ void compiler::load_shifter_imm()
 		s << "\xD1\xD8"; // rcr eax,1 
 		break;
 	}
+	store_carry();
 }
 
 
@@ -307,7 +327,12 @@ void compiler::load_eax_ecx_or_reg(int r1, int r2)
 {
 	if (r1 == r2)                                   // reuse same reg?
 		s << "\x8B\xC1";                            // mov eax, ecx
-	else s << "\x8B\x45" << (char)OFFSET(regs[r1]); // mov eax, [ebp+rn]
+	else // handle R15 here
+	{
+		if (r1 == 0xF)
+			load_eax_reg_or_pc(r1, 1 << INST_BITS);
+		else load_eax_reg_or_pc(r1, 0);
+	}
 }
 
 void compiler::shiftop_eax_ecx()
@@ -600,7 +625,6 @@ void compiler::compile_instruction()
 	//s << "\x0F\xD4\xC1"; // paddq mm0,mm1
 #endif
 
-
 	if (ctx.cond != CONDITION::AL)
 	{
 		if (ctx.cond != CONDITION::NV)
@@ -616,8 +640,8 @@ void compiler::compile_instruction()
 			// means the instruction will _not_ be executed.
 			case CONDITION::EQ: s << '\x75'; break; // jnz  (ZF = 0)
 			case CONDITION::NE: s << '\x74'; break; // jz   (ZF = 0)
-			case CONDITION::CS: s << '\x72'; break; // jc   (CF = 1) 
-			case CONDITION::CC: s << '\x73'; break; // jnc  (CF = 0)
+			case CONDITION::CS: s << '\x73'; break; // jnc  (CF = 0)
+			case CONDITION::CC: s << '\x72'; break; // jc   (CF = 1)
 			case CONDITION::MI: s << '\x79'; break; // jns  (SF = 0)
 			case CONDITION::PL: s << '\x78'; break; // js   (SF = 1)
 			case CONDITION::VS: s << '\x71'; break; // jno  (OF = 0)
@@ -625,9 +649,9 @@ void compiler::compile_instruction()
 			case CONDITION::HI: s << '\x76'; break; // jbe  (CF = 1 or  ZF = 1)
 			case CONDITION::LS: s << '\x77'; break; // jnbe (CF = 0 and ZF = 0)
 			case CONDITION::GE: s << '\x7C'; break; // jl   (SF != OF)
-			case CONDITION::LT: s << '\x7D'; break; // jge  (SF == OF)
+			case CONDITION::LT: s << '\x7D'; break; // jge  (SF == OF) (jnl)
 			case CONDITION::GT: s << '\x7E'; break; // jle  (ZF = 0 or  SF != OF)
-			case CONDITION::LE: s << '\x7F'; break; // jg   (ZF = 0 and SF == OF)
+			case CONDITION::LE: s << '\x7F'; break; // jg   (ZF = 0 and SF == OF) (jnle)
 			}
 			jmpbyte = s.tellp();
 			patch_jump = true;
@@ -679,6 +703,7 @@ void compiler::compile_instruction()
 			s << "\x89\x45" << (char)OFFSET(regs[ctx.rd]); // mov [ebp+rd], eax
 		}
 
+		load_carry();
 		if (ctx.flags & disassembler::S_BIT)
 		{
 			// only when no shifter op
@@ -691,13 +716,15 @@ void compiler::compile_instruction()
 	case INST::MOV_RR: 	// "MOV%c%s %Rd,%Rm,%S %Rs",
 		break_if_pc(ctx.rd);
 		load_ecx_reg_or_pc(ctx.rs);          // ecx = reg[rn]
-		load_eax_ecx_or_reg(ctx.rm, ctx.rs); // edx = reg[rd]
+		load_eax_ecx_or_reg(ctx.rm, ctx.rs); // eax = reg[rd]
 		shiftop_eax_ecx();
 		s << "\x89\x45" << (char)OFFSET(regs[ctx.rd]); // mov [ebp+rd], eax
 		if (ctx.flags & disassembler::S_BIT)
 		{
 			// todo optimize the flagcheck (doesnt need to do the cmp)
+			store_carry();
 			s << "\x83\xC8" << '\x0'; // or eax, 0
+			load_carry();
 			store_flags();
 		}
 		break;
@@ -718,6 +745,7 @@ void compiler::compile_instruction()
 			s << "\xF7\xD0";                                // not eax
 			s << "\x89\x45" << (char)OFFSET(regs[ctx.rd]);  // mov [ebp+rd], eax
 		}
+		load_carry();
 		if (ctx.flags & disassembler::S_BIT)
 			store_flags();
 		break;
@@ -1039,6 +1067,7 @@ void compiler::compile_instruction()
 			s << "\x23\x45" << (char)OFFSET(regs[ctx.rn]); // and eax, [ebp+rn]
 			s << "\x89\x45" << (char)OFFSET(regs[ctx.rd]); // mov [ebp+rd], eax
 		}
+		load_carry();
 		if (ctx.flags & disassembler::S_BIT)
 			store_flags(); // todo: set carry = shifter carry
 		break;
@@ -1052,6 +1081,7 @@ void compiler::compile_instruction()
 			s << "\x23\x45" << (char)OFFSET(regs[ctx.rn]); // and eax, [ebp+rn]
 			s << "\x89\x45" << (char)OFFSET(regs[ctx.rd]); // mov [ebp+rd], eax
 		}
+		load_carry();
 		if (ctx.flags & disassembler::S_BIT)
 			store_flags(); // todo: set carry = shifter carry
 		break;
@@ -1065,6 +1095,7 @@ void compiler::compile_instruction()
 			s << "\x33\x45" << (char)OFFSET(regs[ctx.rn]); // xor eax, [ebp+rn]
 			s << "\x89\x45" << (char)OFFSET(regs[ctx.rd]); // mov [ebp+rd], eax
 		}
+		load_carry();
 		if (ctx.flags & disassembler::S_BIT)
 			store_flags(); // todo: set carry = shifter carry
 		break;
@@ -1165,8 +1196,9 @@ void compiler::compile_instruction()
 		{
 			// optimize this
 			load_shifter_imm();
-			if (!flags_actual)
-				load_flags();
+			s << '\x50'; // push eax
+			load_flags();
+			s << '\x58'; // pop eax
 			if (ctx.rn == ctx.rd)
 			{
 				s << "\x11\x45" << (char)OFFSET(regs[ctx.rn]); // adc [ebp+Rn], eax
@@ -1175,9 +1207,6 @@ void compiler::compile_instruction()
 				s << "\x13\x45" << (char)OFFSET(regs[ctx.rn]); // adc eax, [ebp+Rn]
 				s << "\x89\x45" << (char)OFFSET(regs[ctx.rd]); // mov [ebp+rd], eax
 			}
-
-
-
 			if (ctx.flags & disassembler::S_BIT)
 				store_flags();
 			break;
@@ -1293,6 +1322,7 @@ void compiler::compile_instruction()
 		load_shifter_imm();
 		s << "\x0B\x45" << (char)OFFSET(regs[ctx.rn]); // or eax, [ebp+Rn]
 		s << "\x89\x45" << (char)OFFSET(regs[ctx.rd]); // mov [ebp+rd], eax
+		load_carry();
 		if (ctx.flags & disassembler::S_BIT)
 			store_flags();
 		break;

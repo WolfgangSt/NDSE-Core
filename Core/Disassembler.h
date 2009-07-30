@@ -380,6 +380,14 @@ public:
 				char c = *p++;
 				switch (c)
 				{
+				case '^':
+					if (ctx.flags & S_BIT)
+						cat('^');
+					continue;
+				case '-':
+					if (!(ctx.flags & U_BIT))
+						cat('-');
+					continue;
 				case '?':
 					cat("???");
 					//DebugBreak();
@@ -1079,12 +1087,16 @@ public:
 		case 0x1: // lsr page 366
 			ctx.rm = ctx.rn;
 			ctx.imm = (ctx.op >> 6) & 0x1F;
+			if (ctx.imm == 0)
+				ctx.imm = 32;
 			ctx.shift = SHIFT::LSR;
 			ctx.instruction = INST::MOV_R;
 			return;
 		case 0x2: // asr page 318
 			ctx.rm = ctx.rn;
 			ctx.imm = (ctx.op >> 6) & 0x1F;
+			if (ctx.imm == 0)
+				ctx.imm = 32;
 			ctx.shift = SHIFT::ASR;
 			ctx.instruction = INST::MOV_R;
 			return; 
@@ -1138,6 +1150,7 @@ public:
 		ctx.shift = SHIFT::LSL;
 		ctx.imm = 0;
 
+		ctx.flags |= U_BIT;
 		switch ((ctx.op >> 9) & 0x7)
 		{
 		case 0x0: // STR   page 392
@@ -1156,8 +1169,8 @@ public:
 			ctx.instruction = INST::LDR_RP;
 			return;
 		case 0x5: // LDRH  page 358 
-			ctx.extend_mode = EXTEND_MODE::H;
 			ctx.instruction = INST::LDRX_RP;
+			ctx.extend_mode = EXTEND_MODE::H;
 			return;
 		case 0x6: // LDRB  page 355
 			ctx.instruction = INST::LDRB_RP;
@@ -1177,6 +1190,7 @@ public:
 		ctx.rd = decode_regt<8>();
 		ctx.imm = (ctx.op & 0xFF) << 2; // unsigned?!
 		ctx.instruction = INST::LDR_IP; // "LDR%c %Rd,[%Rn,#0x%I]",   // OK
+		ctx.flags |= U_BIT;
 		ctx.rn = 15;
 	}
 
@@ -1332,7 +1346,7 @@ public:
 		// load store (b) imm
 		ctx.rd = decode_regt<0>();
 		ctx.rn = decode_regt<3>();
-		
+		ctx.flags |= U_BIT;
 		switch ((ctx.op >> 11) & 0x3)
 		{
 		case 0x0: // str page 390 
@@ -1359,7 +1373,7 @@ public:
 		ctx.imm = (ctx.op & 0xFF) << 2;
 		ctx.rd = decode_regt<8>();
 		ctx.rn = 13;
-
+		ctx.flags |= U_BIT;
 		if (ctx.op & (1 << 11))
 			ctx.instruction = INST::LDR_IP;  // page 352 => LDR (10011)
 		else ctx.instruction = INST::STR_IP; // page 394 => STR (10010)
@@ -1375,7 +1389,7 @@ public:
 		ctx.rn = decode_regt<3>();
 		ctx.imm = (ctx.op >> 5) & 0x3E;
 		ctx.extend_mode = EXTEND_MODE::H;
-
+		ctx.flags |= U_BIT;
 		if (ctx.op & (1  << 11))
 			ctx.instruction = INST::LDRX_IP;
 		else ctx.instruction = INST::STRX_IP;		

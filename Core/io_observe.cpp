@@ -51,7 +51,8 @@ void io_observer::process9()
 		{
 			if (p[j] == bmem[j])
 				continue;
-			bool nolog = false;
+
+
 			const char *name = "<unknown>";
 			unsigned long addr = addr_base + j * sizeof(unsigned long);
 			switch (addr)
@@ -67,35 +68,15 @@ void io_observer::process9()
 					//fake_ipc_sync();
 					break;
 				}
-			case 0x208:
-				name = "[IME] Interrupt master flag";
-				nolog = true;
-				break;
-			case 0x240:
-				name = "[VRAMCNT] RAM bank control 0";
-				remap_v = true;
-				break;
-			case 0x244:
-				name = "[WRAMCNT] RAM bank control 1";
-				remap_v = true;
-				break;
-			case 0x248:
-				name = "[VRAM_HI_CNT] RAM bank control 2";
-				remap_v = true;
-				break;
 			}
-			if (!nolog)
-			{
-				logging<_DEFAULT>::logf("IO change at ARM9:%08X from %08X to %08X [%s]", 
-					addr, p[j], bmem[j], name);
-			}
+
 
 			// update
 			p[j] = bmem[j];
 		}
 	}
-	if (remap_v)
-		vram::remap();
+	//if (remap_v)
+	//	vram::remap();
 }
 
 void io_observer::process7()
@@ -115,23 +96,12 @@ void io_observer::process7()
 		{
 			if (p[j] == bmem[j])
 				continue;
-			bool nolog = false;
+
 			const char *name = "<unknown>";
 			unsigned long addr = addr_base + j * sizeof(unsigned long);
 			
-			/*
 			switch (addr)
 			{
-			// 0x208 = IME
-			// 0x1C0 = SPICNT
-			}
-			*/
-			switch (addr)
-			{
-			case 0x138:
-				name = "RTC Realtime Clock Bus";
-				nolog = true;
-				break;
 			case 0x180:
 				{
 					name = "IPC Synchronize Register";
@@ -156,13 +126,11 @@ void io_observer::process7()
 				// trigger fifo interrupt on ARM9 when requested
 				*(unsigned long*)memory::arm9_ipc.blocks[0].mem = fifo<_ARM9>::top();
 				interrupt<_ARM9>::fire(18); // IPC Recv FIFO Not Empty
-				nolog = true;
 				break;
 				}
 			case 0x1C0:
 				{
 					name = "[SPICNT/SPIDATA] SPI Bus Control/Data";
-					nolog = true; 
 
 					endian_access &spi = *(endian_access*)(bmem+j);
 					/*
@@ -176,23 +144,7 @@ void io_observer::process7()
 
 					break;
 				}
-			case 0x208:
-				name = "[IME] Interrupt master flag";
-				nolog = true;
-				break;
-			case 0x214:
-				name = "[IF] Interrupt flag";
-				nolog = true;
-				break;
 			}
-			
-			if (!nolog)
-			{
-				logging<_DEFAULT>::logf("IO change at ARM7:%08X from %08X to %08X [%s]", 
-					addr, p[j], bmem[j], name);
-			}
-
-			// update
 			p[j] = bmem[j];
 		}
 	}
@@ -256,8 +208,6 @@ void io_observer::init()
 	memset( reactor_data9, 0, sizeof(reactor_data9) );
 	memset( reactor_data7, 0, sizeof(reactor_data7) );
 	//reactor_data[0][0x180 >> 2] = 0xEFEFEFEF; // fifo fake sync init
-
-	vram::init();
 
 	// register direct callbacks needed to properly sync
 	// arm9 pages init

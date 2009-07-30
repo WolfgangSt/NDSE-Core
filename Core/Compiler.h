@@ -82,6 +82,9 @@ private:
 	void load_flags();
 	void load_shifter_imm();
 
+	void store_carry();
+	void load_carry();
+
 	void record_callstack();
 	void update_callstack();
 	void add_ecx_bpre();
@@ -159,6 +162,20 @@ public:
 			c.inst = i;
 			const disassembler::context &cnext = d.get_context();
 			c.lookahead_s = (cnext.flags & disassembler::S_BIT);
+			if (c.lookahead_s)
+			{
+				// check if instruction is flag consuming
+				switch (cnext.instruction)
+				{
+				case INST::ADC_I:
+				case INST::ADC_R:
+				case INST::ADC_RR:
+					c.lookahead_s = false;
+				}
+
+				if (cnext.shift == SHIFT::RXX)
+					c.lookahead_s = false;
+			}
 			c.compile_instruction();
 		}
 		// final interation
