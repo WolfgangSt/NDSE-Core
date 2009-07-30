@@ -98,7 +98,7 @@ private:
 			const memory_region_base *region_q = block->base;
 			size_t addr_q = region_q->address( block );
 			
-			logging<T>::logf(  "Remapping at 0x%08X from <%s>:%X to <%s>:%X\n", 
+			logging<T>::logf(  "Remapping at 0x%08X from <%s>:%X to <%s>:%X", 
 				page * PAGING::SIZE, region_p->name, addr_p, region_q->name, addr_q );
 		}
 

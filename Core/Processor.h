@@ -3,12 +3,25 @@
 
 #include "ArmContext.h"
 
+
 template<typename T> class processor
 {
 private:
 	typedef memory_map<T> mem;
 public:
-	static emulation_context context;
+	enum CPU_MODE
+	{
+		USER       = 0, // user/system
+		SUPERVISOR = 1, // svc
+		ABORT      = 2, // abt
+		UNDEFINED  = 3, // und
+		INTERRUPT  = 4, // irq
+		FASTINT    = 5, // fiq
+		MAX_MODES  = 6
+	};
+
+
+	static emulation_context context[MAX_MODES];
 
 	// holds the current page ARM code gets executed on
 	// updated in HLE branch command
@@ -59,7 +72,7 @@ public:
 	}
 };
 
-template<typename T> emulation_context processor<T>::context;
+template<typename T> emulation_context processor<T>::context[processor::MAX_MODES];
 template<typename T> memory_block* processor<T>::last_page;
 
 #endif

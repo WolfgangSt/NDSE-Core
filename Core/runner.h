@@ -40,7 +40,8 @@ template <typename T> host_context exception_context<T>::context;
 template <typename T, typename U>
 void update_breakinfo(char *eip, const compiled_block<U> *block)
 {
-	unsigned long R15 = processor<T>::context.regs[15];
+	// TODO: handle CPU mode
+	unsigned long R15 = processor<T>::context[0].regs[15];
 	// find the JIT instruction of the crash
 	int i = 0;
 	while ((eip >= block->remap[i+1]) && (i < block->REMAPS-1))
@@ -136,7 +137,8 @@ template <typename T> struct runner
 	template <typename U>
 	static jit_function get_entry(unsigned long addr)
 	{
-		processor<T>::context.regs[15] = addr & (~PAGING::ADDRESS_MASK);
+		// TODO: handle CPU mode
+		processor<T>::context[0].regs[15] = addr & (~PAGING::ADDRESS_MASK);
 		memory_block *b = memory_map<T>::addr2page( addr );
 		if (b->flags & (memory_block::PAGE_INVALID | memory_block::PAGE_EXECPROT))
 			return 0;
@@ -206,7 +208,8 @@ template <typename T> struct runner
 			return;
 
 		// set EIP and R15 according to addr
-		processor<T>::context.regs[15] = addr;
+		// TODO: handle CPU mode
+		processor<T>::context[0].regs[15] = addr;
 		// could safe the next call as evaluated within get_entry() above
 		processor<T>::last_page = memory_map<T>::addr2page( addr );
 		CONTEXT_EIP(fiber->context.uc_mcontext) = PtrToUlong(jit_code);
@@ -261,7 +264,8 @@ template <typename T> struct runner
 				if ((addr >= si->lopc) && (addr < si->hipc)) // inside block?
 				{
 					// continue
-					if (processor<T>::context.regs[15] & 1)
+					// TODO: handle CPU mode
+					if (processor<T>::context[0].regs[15] & 1)
 						breakpoints<T, IS_THUMB>::step(skipmode);
 					else breakpoints<T, IS_ARM>::step(skipmode);
 					jit_continue();

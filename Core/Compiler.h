@@ -67,7 +67,9 @@ private:
 	void generic_store_r();
 	void generic_load();
 	void generic_load_r();
+	void generic_load_rs(bool post, bool wb);
 	void generic_loadstore_shift();
+	void generic_postload_shift();
 	void generic_load_x();
 	void generic_store_x();
 
@@ -83,6 +85,7 @@ private:
 	void record_callstack();
 	void update_callstack();
 	void add_ecx_bpre();
+	void load_r15_ecx();
 
 	void compile_instruction();
 	void epilogue(char *&mem, size_t &size);

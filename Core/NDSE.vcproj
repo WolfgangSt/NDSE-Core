@@ -411,6 +411,18 @@
 					>
 				</File>
 			</Filter>
+			<Filter
+				Name="VRAM"
+				>
+				<File
+					RelativePath=".\vram.cpp"
+					>
+				</File>
+				<File
+					RelativePath=".\vram.h"
+					>
+				</File>
+			</Filter>
 		</Filter>
 		<Filter
 			Name="CPU"

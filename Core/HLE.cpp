@@ -63,7 +63,8 @@ unsigned long FASTCALL_IMPL(HLE<T>::load32(unsigned long addr))
 		return b->base->load32(addr);
 	if (b->readcb)
 		b->readcb(b, addr);
-	return *(unsigned long*)(&b->mem[addr & (PAGING::ADDRESS_MASK & (~3))]);
+	return _rotr(*(unsigned long*)(&b->mem[addr & (PAGING::ADDRESS_MASK & (~3))]),
+		(addr & 3) << 3);
 }
 
 template <typename T>
@@ -328,11 +329,10 @@ bool InitHLE()
 {
 	HLE<_ARM7>::init();
 	HLE<_ARM9>::init();
+	// init default mapping
+	HLE<_ARM9>::remap_tcm(0x80000A, 0);
 	return true;
 }
-bool HLE_Initialized = InitHLE();
-
-
 
 template <typename T>
 void FASTCALL_IMPL(HLE<T>::is_priviledged())
@@ -386,15 +386,18 @@ public:
 		// invoke getHeader(source, dest, arg)
 		// this only needs a call to cb[0] since r0 r1 r2 are set correct
 		// at function entrance
-		HLE<_ARM9>::invoke(f_open, &processor<_ARM9>::context);
-		unsigned long hdr = processor<_ARM9>::context.regs[0];
+
+		// TODO: handle cpu mode
+		HLE<_ARM9>::invoke(f_open, &processor<_ARM9>::context[0]);
+		unsigned long hdr = processor<_ARM9>::context[0].regs[0];
 		return hdr;
 	}
 	unsigned char get8()
 	{
-		processor<_ARM9>::context.regs[0] = src++;
-		HLE<_ARM9>::invoke(f_get8, &processor<_ARM9>::context);
-		return (unsigned char)processor<_ARM9>::context.regs[0];
+		// TODO: handle cpu mode
+		processor<_ARM9>::context[0].regs[0] = src++;
+		HLE<_ARM9>::invoke(f_get8, &processor<_ARM9>::context[0]);
+		return (unsigned char)processor<_ARM9>::context[0].regs[0];
 	}
 
 	void skip(unsigned int num)
@@ -418,12 +421,13 @@ public:
 
 	void init()
 	{
-		src = processor<_ARM9>::context.regs[0];
-		dst = processor<_ARM9>::context.regs[1];
-		cbp = processor<_ARM9>::context.regs[2];
-		lr = processor<_ARM9>::context.regs[14];
-		pc = processor<_ARM9>::context.regs[15];
-		unsigned long cb = processor<_ARM9>::context.regs[3];
+		// TODO: handle CPU mode
+		src = processor<_ARM9>::context[0].regs[0];
+		dst = processor<_ARM9>::context[0].regs[1];
+		cbp = processor<_ARM9>::context[0].regs[2];
+		lr = processor<_ARM9>::context[0].regs[14];
+		pc = processor<_ARM9>::context[0].regs[15];
+		unsigned long cb = processor<_ARM9>::context[0].regs[3];
 
 		if (src & 3)
 			logging<_ARM9>::logf("SWI 12h Warning: Source Address not aligned: %08X", src);
@@ -458,9 +462,10 @@ public:
 
 	void finish()
 	{
+		// TODO: handle CPU mode
 		flush();
-		processor<_ARM9>::context.regs[14] = lr;
-		processor<_ARM9>::context.regs[15] = pc;
+		processor<_ARM9>::context[0].regs[14] = lr;
+		processor<_ARM9>::context[0].regs[15] = pc;
 	}
 };
 
@@ -511,10 +516,11 @@ template <typename T> void HLE<T>::crc16()
 	// r2  Length in bytes (must be aligned by 2)
 	logging<T>::logf("SWI Eh [crc16] called");
 
+	// TODO: handle CPU mode
 	stream_crc16::context ctx;
-	ctx.crc  = processor<T>::context.regs[0];
-	unsigned long addr = processor<T>::context.regs[1];
-	unsigned long len  = processor<T>::context.regs[2];
+	ctx.crc  = processor<T>::context[0].regs[0];
+	unsigned long addr = processor<T>::context[0].regs[1];
+	unsigned long len  = processor<T>::context[0].regs[2];
 	if (addr & 1)
 	{
 		logging<T>::logf("Address not aligned: %08X", addr);
@@ -526,7 +532,7 @@ template <typename T> void HLE<T>::crc16()
 		DebugBreak_();
 	}
 	memory_map<T>::process_memory<stream_crc16>( addr, len, ctx );
-	processor<T>::context.regs[0] = ctx.crc;
+	processor<T>::context[0].regs[0] = ctx.crc;
 }
 
 
@@ -556,7 +562,8 @@ template <typename T> void HLE<T>::delay()
 	// for R0*4 tacts
 
 	// delays for approx r0/8388 msecs
-	QPseudoThread::do_sleep(processor<T>::context.regs[0] / 8388);
+	// TODO: handle CPU mode
+	QPseudoThread::do_sleep(processor<T>::context[0].regs[0] / 8388);
 }
 
 template <typename T> void HLE<T>::wait_vblank()

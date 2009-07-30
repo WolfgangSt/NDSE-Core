@@ -70,8 +70,22 @@ struct interrupt
 	
 	static void fire(unsigned long interrupt)
 	{
+		static volatile unsigned short &DISPSTAT = *(volatile unsigned short*)
+		(memory::registers9_1.blocks[0x4 >> PAGING::SIZE_BITS].mem + 
+		 (0x4 & PAGING::ADDRESS_MASK));
+
+
 		assert(interrupt < 32);
 		signaled |= 1 << interrupt;
+		switch (interrupt)
+		{
+		case 0: // vblank
+			// set VBLK bit
+			DISPSTAT |= 1;
+			break;
+		case 1: // vcount
+			break;
+		}
 	}
 };
 
@@ -99,7 +113,8 @@ template <> inline void interrupt<_ARM9>::poll_process()
 	
 	unsigned long intr = (unsigned long)_InterlockedExchange(&signaled, 0);
 
-	emulation_context &ctx = processor<_ARM9>::context;
+	// todo: handle cpu mode switch!
+	emulation_context &ctx = processor<_ARM9>::context[0];
 	emulation_context backup = ctx;
 	for (unsigned long mask = 1; mask; mask <<= 1)
 	{
@@ -159,7 +174,8 @@ template <> inline void interrupt<_ARM7>::poll_process()
 
 		unsigned long addr = istack->irq_handler;
 		//logging<_ARM7>::logf("Interrupt to %08X", addr); 
-		emulation_context &ctx = processor<_ARM7>::context;
+		// TODO: handle CPU mode switch!
+		emulation_context &ctx = processor<_ARM7>::context[0];
 		emulation_context backup = ctx;
 		
 		

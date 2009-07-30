@@ -116,8 +116,8 @@ bool loader_nds::is_valid(int fd)
     sz._max( hdr.main.header_size );
     sz._max( hdr.main.rom_size );
 
-	if (sz.sz > hdr.main.rom_size)
-		return false;
+	//if (sz.sz > hdr.main.rom_size)
+	//	return false;
 
 	return (util::get_crc16( 0xFFFF, (char*)&hdr.main, sizeof(hdr.main) ) 
 		    == hdr.sub.header_crc16) &&

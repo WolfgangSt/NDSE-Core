@@ -144,6 +144,14 @@ struct INST
 		MUL_R,
 		MLA_R,
 
+		UMULL,
+		UMLAL,
+		SMULL,
+		SMLAL,
+
+		SWP,
+		SWPB,
+
 		/* missing instructions*/
 
 		
@@ -176,9 +184,9 @@ struct CONDITION
 struct SHIFT
 {
 	typedef enum {
-		LSL, LSR, ASR, ROR
+		LSL, LSR, ASR, ROR, RXX
 	} CODE;
-	static const char* strings[4];
+	static const char* strings[5];
 };
 
 struct EXTEND_MODE
@@ -304,6 +312,12 @@ private:
 	{
 		ctx.shift = (SHIFT::CODE)((ctx.op >> 5) & 0x3);
 		ctx.imm = (ctx.op >> 7) & 0x1F;
+		if((ctx.imm == 0) && (ctx.shift != SHIFT::LSL))
+		{
+			if (ctx.shift == SHIFT::ROR)
+				ctx.shift = SHIFT::RXX;
+			else ctx.imm = 32;
+		}
 	}
 
 	void decode_shift_reg()
@@ -590,19 +604,36 @@ private:
 		return inst_ud();
 	}
 
+	// cond_00001_xxxxxxxxxxxxxxx_1001_xxxx
 	void decode_00001_mulal()
 	{
-		return inst_ud();
+		ctx.rs = decode_reg<8>();
+		if (ctx.op & (1 << 20))
+			ctx.flags |= S_BIT;
+		switch ((ctx.op >> 21) & 0x3)
+		{
+		case 0: ctx.instruction = INST::UMULL; break;
+		case 1: ctx.instruction = INST::UMLAL; break;
+		case 2: ctx.instruction = INST::SMULL; break;
+		case 3: ctx.instruction = INST::SMLAL; break;
+		}
 	}
 
+	// cond_00010_xxxxxxxxxxxxxxx_1001_xxxx
 	void decode_00010_swap()
 	{
-		return inst_ud();
+		switch ((ctx.op >> 20) & 0x7)
+		{
+		case 0: ctx.instruction = INST::SWP; break; // SWP
+		case 4: ctx.instruction = INST::SWPB; break; // SWPB
+		default:
+			return inst_ud();
+		}
 	}
 
+	// cond_000_xxxxxxxxxxxxxxxxx_1001_xxxx
 	void decode_000_mulswap()
 	{
-		ctx.rm = decode_reg<0>();
 		switch ((ctx.op >> 23) & 0x3)
 		{
 		case 0x0: return decode_00000_mula();
@@ -630,20 +661,21 @@ private:
 		}
 		else ctx.imm = (unsigned long)(-imm);
 
+
 		switch ((ctx.op >> 20) & 0x17)
 		{
-		case 0x00: ctx.instruction = INST::STRX_R; return; 
-		case 0x01: ctx.instruction = INST::LDRX_R; return;
-		case 0x02: ctx.instruction = INST::STRX_RW; return;
-		case 0x03: ctx.instruction = INST::LDRX_RW; return;
+		case 0x00: ctx.instruction = INST::STRX_R;  ctx.imm = 0; ctx.shift = SHIFT::LSL; return; 
+		case 0x01: ctx.instruction = INST::LDRX_R;  ctx.imm = 0; ctx.shift = SHIFT::LSL; return;
+		case 0x02: ctx.instruction = INST::STRX_RW; ctx.imm = 0; ctx.shift = SHIFT::LSL; return;
+		case 0x03: ctx.instruction = INST::LDRX_RW; ctx.imm = 0; ctx.shift = SHIFT::LSL; return;
 		case 0x04: ctx.instruction = INST::STRX_I; return;
 		case 0x05: ctx.instruction = INST::LDRX_I; return;
 		case 0x06: ctx.instruction = INST::STRX_IW; return;
 		case 0x07: ctx.instruction = INST::LDRX_IW; return;
-		case 0x10: ctx.instruction = INST::STRX_RP; return; 
-		case 0x11: ctx.instruction = INST::LDRX_RP; return;
-		case 0x12: ctx.instruction = INST::STRX_RPW; return;
-		case 0x13: ctx.instruction = INST::LDRX_RPW; return;
+		case 0x10: ctx.instruction = INST::STRX_RP; ctx.imm = 0; ctx.shift = SHIFT::LSL; return; 
+		case 0x11: ctx.instruction = INST::LDRX_RP; ctx.imm = 0; ctx.shift = SHIFT::LSL; return;
+		case 0x12: ctx.instruction = INST::STRX_RPW; ctx.imm = 0; ctx.shift = SHIFT::LSL; return;
+		case 0x13: ctx.instruction = INST::LDRX_RPW; ctx.imm = 0; ctx.shift = SHIFT::LSL; return;
 		case 0x14: ctx.instruction = INST::STRX_IP; return;
 		case 0x15: ctx.instruction = INST::LDRX_IP; return;
 		case 0x16: ctx.instruction = INST::STRX_IPW; return;
@@ -810,7 +842,7 @@ private:
 				ctx.instruction = INST::TEQ_I;
 			else
 			{
-				if (ctx.rd) // check SB0 for zero
+				if (ctx.rd != 0xF) // check SB0 for ones
 					return inst_unknown();
 				ctx.instruction = INST::MSR_CPSR_I;
 			}

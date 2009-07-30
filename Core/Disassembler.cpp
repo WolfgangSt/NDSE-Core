@@ -140,6 +140,14 @@ const char* INST::strings[] = {
 	"MUL%c%s %Rd,%Rm,%Rs",
 	"MLA%c%s %Rd,%Rm,%Rs,%Rn",
 
+	"UMULL%c%s %Rd,%Rn,%Rm,%Rs",
+	"UMLAL%c%s %Rd,%Rn,%Rm,%R",
+	"SMULL%c%s %Rd,%Rn,%Rm,%Rs",
+	"SMLAL%c%s %Rd,%Rn,%Rm,%Rs",
+
+	"SWP%c %Rd,%Rm,[%Rn]",
+	"SWPB%c %Rd,%Rm,[%Rn]",
+
 	"BLX%c #0x%A"
 
 };
@@ -154,8 +162,8 @@ const char* CONDITION::strings[16] = {
 	"HI", "LS", "GE", "LT", "GT", "LE", "",   "NV"
 };
 
-const char* SHIFT::strings[4] = { 
-	"LSL", "LSR", "ASR", "ROR", 
+const char* SHIFT::strings[5] = { 
+	"LSL", "LSR", "ASR", "ROR", "RXX"
 };
 
 const char* ADDRESSING_MODE::strings[4] = { 
@@ -309,6 +317,14 @@ const char* INST::strings[] = {
 	"mul%c%s %Rd,%Rm,%Rs",
 	"mla%c%s %Rd,%Rm,%Rs,%Rn",
 
+	"umull%c%s %Rd,%Rn,%Rm,%Rs",
+	"umlal%c%s %Rd,%Rn,%Rm,%R",
+	"smull%c%s %Rd,%Rn,%Rm,%Rs",
+	"smlal%c%s %Rd,%Rn,%Rm,%Rs",
+
+	"swp%c %Rd,%Rm,[%Rn]",
+	"swpb%c %Rd,%Rm,[%Rn]",
+
 	"blx%c #0x%A"
 
 };
@@ -323,8 +339,8 @@ const char* CONDITION::strings[16] = {
 	"hi", "ls", "ge", "lt", "gt", "le", "",   "nv"
 };
 
-const char* SHIFT::strings[4] = { 
-	"lsl", "lsr", "asr", "ror", 
+const char* SHIFT::strings[5] = { 
+	"lsl", "lsr", "asr", "ror", "rxx"
 };
 
 const char* ADDRESSING_MODE::strings[4] = { 

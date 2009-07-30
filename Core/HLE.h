@@ -16,6 +16,8 @@
 #define NAKEDCALL_IMPL(x) __attribute__((fastcall)) __attribute__((naked)) x
 #endif
 
+extern bool InitHLE();
+
 enum {
 	NOCASH_DEBUGOUT = 0x6464,
 	NOCASH_EXT_HALT = 0x9090,
@@ -169,13 +171,15 @@ public:
 			}
 			break;
 		case NOCASH_EXT_VERS:
-			processor<T>::context.regs[0] = NDSE_VERSION;
+			// TODO: handle CPU mode
+			processor<T>::context[0].regs[0] = NDSE_VERSION;
 			break;
 		case NOCASH_EXT_SCRI:
 			{
-				//unsigned long addr = processor<T>::context.regs[0];
-				//unsigned long size = processor<T>::context.regs[1];
-				unsigned long script = processor<T>::context.regs[2];
+				// TODO: handle CPU mode
+				//unsigned long addr = processor<T>::context[0].regs[0];
+				//unsigned long size = processor<T>::context[0].regs[1];
+				unsigned long script = processor<T>::context[0].regs[2];
 				
 				stream_debugstring::context ctx;
 				ctx.pos = 0;
@@ -188,12 +192,13 @@ public:
 
 				logging<T>::log("Hostcalls are not supported yet");
 
-				processor<T>::context.regs[0] = 0;
+				processor<T>::context[0].regs[0] = 0;
 				break;
 			}
 		case NOCASH_EXT_RTSC:
 			{
-				processor<T>::context.regs[0] = ((readtsc_fun)&read_tsc)();
+				// TODO: handle CPU mode
+				processor<T>::context[0].regs[0] = ((readtsc_fun)&read_tsc)();
 				break;
 			}
 		default:

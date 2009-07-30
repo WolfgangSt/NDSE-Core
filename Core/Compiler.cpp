@@ -84,6 +84,8 @@ template <typename T> void write(std::ostream &s, const T &t)
 
 void compiler::load_shifter_imm()
 {
+	if (ctx.shift == SHIFT::RXX)
+		load_flags();
 	load_eax_reg_or_pc(ctx.rm);
 	switch (ctx.shift)
 	{
@@ -92,17 +94,33 @@ void compiler::load_shifter_imm()
 			s << "\xC1\xE0" << (char)ctx.imm; // shl eax, imm
 		break;
 	case SHIFT::LSR:
-		if (ctx.imm != 0)
+		if (ctx.imm == 32) // optimize => doesnt need the initial load
+			s << "\x33\xC0";                  // xor eax,eax
+		else
 			s << "\xC1\xE8" << (char)ctx.imm; // shr eax, imm
 		break;
 	case SHIFT::ASR:
 		if (ctx.imm != 0)
-			s << "\xC1\xF8" << (char)ctx.imm; // sar eax, imm
+		{
+			if (ctx.imm == 32)
+			{
+				s << "\xC1\xF8" << (char)31; // sar eax, 31
+				//s << "\xC1\xF8" << (char)1;  // sar eax, 1
+			} else
+			{
+				s << "\xC1\xF8" << (char)ctx.imm; // sar eax, imm
+			}
+		}
 		break;
 	case SHIFT::ROR:
-		s << DEBUG_BREAK;
+		if (ctx.imm != 0)
+		{
+			s << "\xC1\xC8" << (char)ctx.imm; // ror eax, imm
+		}
 		break;
-	// RRX =
+	case SHIFT::RXX:
+		s << "\xD1\xD8"; // rcr eax,1 
+		break;
 	}
 }
 
@@ -370,16 +388,24 @@ void compiler::generic_loadstore_shift()
 	{
 		// simply add Rm to ecx
 		s << "\x03\x4D" << (char)OFFSET(regs[ctx.rm]); // add ecx, [ebp+rm]
-	} else
+		return;
+	} 
+	
+	s << "\x8B\x45" << (char)OFFSET(regs[ctx.rm]); // mov eax,[ebp+rm]
+	switch (ctx.shift)
 	{
+	case SHIFT::LSL:
+		s << "\xC1\xE0" << (char)ctx.imm;          // shl eax, imm
+		//break; // couldnt verify yet
+	default:
 		s << DEBUG_BREAK;
-		// shifters not supported yet
-	}
+	}		
+	s << "\x03\xC8";                               // add ecx, eax
 }
 
 void compiler::generic_load()
 {
-	load_ecx_reg_or_pc(ctx.rn, ctx.imm);  // ecx = reg[rn] + imm
+	load_ecx_reg_or_pc(ctx.rn, ctx.imm);
 }
 
 void compiler::generic_load_post()
@@ -390,9 +416,66 @@ void compiler::generic_load_post()
 
 void compiler::generic_load_r()
 {
-	break_if_pc(ctx.rd);                  // todo handle rd = PC
-	generic_load();
-	generic_loadstore_shift();
+	
+	break_if_pc(ctx.rd);           // todo handle rd = PC
+	//generic_load();
+	load_ecx_reg_or_pc(ctx.rn, 0); // imm is used for shifter here!
+	//generic_loadstore_shift();   // r versions should use imm for register id
+	
+	/*
+	unsigned long imm4 = ctx.imm & 0xF;
+	break_if_pc(imm4);
+	s << "\x03\x4D" << (char)OFFSET(regs[imm4]); // add ecx, [ebp+Rimm4]
+	*/
+
+	if (ctx.flags & disassembler::U_BIT)
+		s << "\x03\x4D" << (char)OFFSET(regs[ctx.rm]); // add ecx, [ebp+rm]
+	else s << "\x2B\x4D" << (char)OFFSET(regs[ctx.rm]); // sub ecx, [ebp+rm]
+	
+}
+
+void compiler::generic_load_rs(bool post, bool wb)
+{
+	break_if_pc(ctx.rd);
+	break_if_pc(ctx.rn);
+	load_shifter_imm();                            // eax = rm SHIFT imm
+	
+	if (!(ctx.flags & disassembler::U_BIT))
+		s << "\xF7\xD8";                           // neg eax
+
+	if (post)
+	{
+		s << "\x03\x45" << (char)OFFSET(regs[ctx.rn]); // add eax, [ebp+rn]	
+		s << "\x8B\xC8";                               // mov ecx, eax
+		if (wb)
+			s << "\x89\x45" << (char)OFFSET(regs[ctx.rn]); // mov [ebp+rn], eax
+	} else
+	{
+		s << "\x8B\x4D" << (char)OFFSET(regs[ctx.rn]); // mov ecx, [ebp+rn]
+		if (wb)
+			s << "\x01\x45" << (char)OFFSET(regs[ctx.rn]); // add [ebp+rn], eax
+	}
+}
+
+void compiler::generic_postload_shift()
+{
+	/*
+	if (ctx.rn != ctx.rd) // unpredictable load wins according to armwrestler
+	{
+		s << "\x89\x45" << (char)OFFSET(regs[ctx.rd]);  // mov [ebp+rd], eax
+		load_shifter_imm();                            // eax = rm SHIFT imm
+		if (!(ctx.flags & disassembler::U_BIT))
+			s << "\xF7\xD8";                           // neg eax
+		s << "\x01\x45" << (char)OFFSET(regs[ctx.rn]); // add [ebp+rn], eax
+	}
+	*/
+
+	s << '\x50';                                   // push eax (load result)
+	load_shifter_imm();
+	if (!(ctx.flags & disassembler::U_BIT))
+			s << "\xF7\xD8";                       // neg eax
+	s << "\x01\x45" << (char)OFFSET(regs[ctx.rn]); // add [ebp+rn], eax
+	s << "\x8F\x45" << (char)OFFSET(regs[ctx.rd]); // pop [ebp+rd] 
 }
 
 void compiler::generic_load_x()
@@ -400,8 +483,10 @@ void compiler::generic_load_x()
 	switch (ctx.extend_mode)
 	{
 	case EXTEND_MODE::H:  CALLP(load16u); break;
-	//case EXTEND_MODE::SB: CALLP(load8s); break; // special instruction ...
-	case EXTEND_MODE::SH: CALLP(load16s); break; // special instruction ...
+	case EXTEND_MODE::SB: CALLP(load8u) 
+		s << "\x0F\xBE\xC0"; // movsx eax,al .
+		break;
+	case EXTEND_MODE::SH: CALLP(load16s); break;
 	default:
 		s << DEBUG_BREAK;
 	}
@@ -417,6 +502,13 @@ void compiler::generic_store_x()
 	default:
 		s << DEBUG_BREAK;
 	}
+}
+
+
+void compiler::load_r15_ecx()
+{
+	s << "\x8B\x4D" << (char)OFFSET(regs[15]);                               // mov ecx, [ebp+R15]
+	s << "\x81\xE1"; write( s, (unsigned long)(~PAGING::ADDRESS_MASK | 1) ); // and ecx, ~PAGING::ADDR_MASK 
 }
 
 
@@ -565,8 +657,7 @@ void compiler::compile_instruction()
 		{
 			if (ctx.rd == 12)
 			{
-				s << "\x8B\x4D" << (char)OFFSET(regs[15]);             // mov ecx, [ebp+R15]
-				s << "\x81\xE1"; write( s, (unsigned long)(~PAGING::ADDRESS_MASK | 1) ); // and ecx, ~PAGING::ADDR_MASK
+				load_r15_ecx();
 				s << "\x81\xC1"; write( s, (unsigned long)(inst+1) << INST_BITS);  
 				CALLP(debug_magic)
 			} else
@@ -590,7 +681,9 @@ void compiler::compile_instruction()
 
 		if (ctx.flags & disassembler::S_BIT)
 		{
-			s << "\x83\xC8" << '\x0'; // or eax, 0
+			// only when no shifter op
+			if (ctx.imm == 0)
+				s << "\x83\xC8" << '\x0'; // or eax, 0
 			store_flags();
 		}
 		break;
@@ -632,14 +725,26 @@ void compiler::compile_instruction()
 	case INST::STR_I:
 		generic_store();
 		CALLP(store32)
-		generic_loadstore_postupdate_imm();		
+		generic_loadstore_postupdate_imm();
 		break;
+	case INST::STRB_I:
+		generic_store();
+		CALLP(store8);
+		generic_loadstore_postupdate_imm();
+		break;
+
 	/*
 	case INST::STR_IW:
 		s << "\x90";
 		s << DEBUG_BREAK;
 		break;
 	*/
+	case INST::STRX_I:
+		generic_store();
+		generic_store_x();
+		generic_loadstore_postupdate_imm();
+		break;
+
 	case INST::STRX_IP:
 		generic_store_p();
 		generic_store_x();
@@ -679,16 +784,66 @@ void compiler::compile_instruction()
 		CALLP(load32)
 		s << "\x89\x45" << (char)OFFSET(regs[ctx.rd]);  // mov [ebp+rd], eax
 		break;
+
 	// Pre index loads
 	case INST::LDR_IP:
 		generic_load();
 		CALLP(load32)
-		//break_if_pc(ctx.rd);                  // todo handle rd = PC
 		store_rd_eax();
 		break;
+	case INST::LDRX_IP:
+		generic_load();
+		generic_load_x();
+		store_rd_eax();
+		break;
+
+	case INST::LDR_IPW:
+		generic_load();
+		CALLP(load32)
+		generic_loadstore_postupdate_imm();
+		store_rd_eax();
+		break;
+	case INST::LDRB_IPW:
+		generic_load();
+		CALLP(load8u)
+		generic_loadstore_postupdate_imm();
+		store_rd_eax();
+		break;
+	case INST::LDRX_IPW:
+		generic_load();
+		generic_load_x();
+		generic_loadstore_postupdate_imm();
+		store_rd_eax();
+		break;
+
+
+	case INST::LDR_R:
+		//generic_load_rs(false, false);
+		load_ecx_reg_or_pc(ctx.rn);
+		CALLP(load32)
+		
+		// post increment: load shifter and update rn
+		generic_postload_shift();
+		
+		break;
+
 	case INST::LDR_RP:
-		generic_load_r();
+		generic_load_rs(true, false);
 		CALLP(load32) 
+		s << "\x89\x45" << (char)OFFSET(regs[ctx.rd]);  // mov [ebp+rd], eax
+		break;
+
+	case INST::LDR_RPW:
+		generic_load_rs(true, true);
+		s << "\x89\x4D" << (char)OFFSET(regs[ctx.rn]);  // mov [ebp+rn], ecx
+		CALLP(load32) 
+		s << "\x89\x45" << (char)OFFSET(regs[ctx.rd]);  // mov [ebp+rd], eax
+		break;
+
+	case INST::LDRB_I:
+		generic_load_post();
+		generic_loadstore_postupdate_imm();
+		CALLP(load8u)
 		s << "\x89\x45" << (char)OFFSET(regs[ctx.rd]);  // mov [ebp+rd], eax
 		break;
 	case INST::LDRB_IP:
@@ -702,13 +857,8 @@ void compiler::compile_instruction()
 		CALLP(load8u)
 		s << "\x89\x45" << (char)OFFSET(regs[ctx.rd]);  // mov [ebp+rd], eax
 		break;
-	case INST::LDRX_IP:
-		break_if_pc(ctx.rd);                  // todo handle rd = PC
-		generic_load();
-		generic_load_x();
-		s << "\x89\x45" << (char)OFFSET(regs[ctx.rd]);  // mov [ebp+rd], eax
-		break;
-	case INST::LDRX_RP:
+
+	case INST::LDRX_RP: // bogus!
 		generic_load_r();
 		generic_load_x();
 		s << "\x89\x45" << (char)OFFSET(regs[ctx.rd]);  // mov [ebp+rd], eax
@@ -717,8 +867,7 @@ void compiler::compile_instruction()
 
 	case INST::BLX_I:
 		// Branch and link
-		s << "\x8B\x4D" << (char)OFFSET(regs[15]);             // mov ecx, [ebp+R15]
-		s << "\x81\xE1"; write( s, (unsigned long)(~PAGING::ADDRESS_MASK | 1) ); // and ecx, ~PAGING::ADDR_MASK | 1
+		load_r15_ecx();
 		s << "\x81\xC1"; write( s, (unsigned long)(inst+1) << INST_BITS);        // add ecx, imm
 		s << "\x89\x4D" << (char)OFFSET(regs[14]);             // mov [ebp+r14], ecx
 		record_callstack();
@@ -730,8 +879,7 @@ void compiler::compile_instruction()
 		break;
 	case INST::BL:
 		// Branch and link
-		s << "\x8B\x4D" << (char)OFFSET(regs[15]);             // mov ecx, [ebp+R15]
-		s << "\x81\xE1"; write( s, (unsigned long)(~PAGING::ADDRESS_MASK | 1) ); // and ecx, ~PAGING::ADDR_MASK | 1
+		load_r15_ecx();
 		s << "\x81\xC1"; write( s, (unsigned long)(inst+1) << INST_BITS);        // add ecx, imm
 		s << "\x89\x4D" << (char)OFFSET(regs[14]);             // mov [ebp+r14], ecx
 		record_callstack();
@@ -750,8 +898,7 @@ void compiler::compile_instruction()
 
 	case INST::BLX: // Branch and link register
 		// link
-		s << "\x8B\x4D" << (char)OFFSET(regs[15]);             // mov ecx, [ebp+R15]
-		s << "\x81\xE1"; write( s, (unsigned long)(~PAGING::ADDRESS_MASK | 1) ); // and ecx, ~PAGING::ADDR_MASK | 1
+		load_r15_ecx();
 		s << "\x81\xC1"; write( s, (unsigned long)(inst+1) << INST_BITS); // add ecx, imm
 		s << "\x89\x4D" << (char)OFFSET(regs[14]);             // mov [ebp+r14], ecx
 		record_callstack();
@@ -765,8 +912,7 @@ void compiler::compile_instruction()
 
 	case INST::B:
 		// This branch jumps correct now
-		s << "\x8B\x4D" << (char)OFFSET(regs[15]);    // mov ecx, [ebp+R15]
-		s << "\x81\xE1"; write( s, (unsigned long)(~PAGING::ADDRESS_MASK | 1) ); // and ecx, ~PAGING::ADDR_MASK | 1
+		load_r15_ecx();
 		s << "\x81\xC1"; write( s, ctx.imm + (unsigned long)((inst) << INST_BITS)); // add ecx, imm
 		s << "\x89\x4D" << (char)OFFSET(regs[15]);    // mov [ebp+r15], ecx
 		update_callstack();
@@ -968,6 +1114,23 @@ void compiler::compile_instruction()
 			store_flags();
 		break;
 
+	case INST::EOR_I: // Rd = Rn ^ imm
+		break_if_pc(ctx.rn);
+		break_if_pc(ctx.rd);
+		if (ctx.rn == ctx.rd)
+		{
+			s << "\x81\x75" << (char)OFFSET(regs[ctx.rn]); // xor [ebp+rn],
+			write( s, ctx.imm );                           //  imm
+		} else
+		{
+			s << "\x8B\x45" << (char)OFFSET(regs[ctx.rn]); // mov eax, [ebp+rn]
+			s << "\x35"; write(s, ctx.imm );               // xor eax, imm
+			s << "\x89\x45" << (char)OFFSET(regs[ctx.rd]); // mov [ebp+rd], eax
+		}
+		if (ctx.flags & disassembler::S_BIT)
+			store_flags();
+		break;
+
 	case INST::ADD_I: // Rd = Rn + imm
 		break_if_pc(ctx.rd);
 		if (ctx.rn == ctx.rd)
@@ -1000,6 +1163,7 @@ void compiler::compile_instruction()
 		}
 	case INST::ADC_R: // Rd = Rn + shifter_imm + carry
 		{
+			// optimize this
 			load_shifter_imm();
 			if (!flags_actual)
 				load_flags();
@@ -1051,9 +1215,21 @@ void compiler::compile_instruction()
 			break;
 		}
 
+	case INST::SBC_I: // Rd = Rn - imm - carry
+		{
+			if (!flags_actual)
+				load_flags();
+			s << "\x8B\x45" << (char)OFFSET(regs[ctx.rn]); // mov eax, [ebp+rn]
+			s << "\x1D" << (unsigned long)(ctx.imm);       // sbb eax, imm
+			s << "\x89\x45" << (char)OFFSET(regs[ctx.rd]); // mov [ebp+rd], eax
+			if (ctx.flags & disassembler::S_BIT)
+				store_flags(); // todo: set carry = shifter carry
+			break;
+		}
 
 	case INST::SBC_R: // Rd = Rn - shifter_imm - carry
 		{
+			// optimize (see RSC)
 			load_shifter_imm();
 			if (!flags_actual)
 				load_flags();
@@ -1095,8 +1271,14 @@ void compiler::compile_instruction()
 					store_flags();				
 				break;
 			}
+			break;
 		}
-		s << '\x90' << DEBUG_BREAK;
+
+		// generic form
+		// dst = shifter_imm - rn
+		s << '\xB8'; write(s, ctx.imm);                // mov eax, imm
+		s << "\x2B\x45" << (char)OFFSET(regs[ctx.rn]); // sub eax, [ebp+rn]
+		s << "\x89\x45" << (char)OFFSET(regs[ctx.rd]); // mov [ebp+rd], eax
 		break;
 	case INST::RSB_R:
 		load_shifter_imm();
@@ -1114,6 +1296,33 @@ void compiler::compile_instruction()
 		if (ctx.flags & disassembler::S_BIT)
 			store_flags();
 		break;
+	case INST::RSC_R: // Rd = shifter - Rn - !carry
+		if (!flags_actual)
+			load_flags();
+		//s << "\xF5";                                   // cmc
+		s << "\xB9" << (unsigned long)0;               // mov ecx, 0
+		s << "\x1B\x4D" << (char)OFFSET(regs[ctx.rn]); // sbb ecx, [ebp+Rn]
+		load_shifter_imm();
+		s << "\x2B\xC1";                               // sub eax, ecx
+		s << "\x89\x45" << (char)OFFSET(regs[ctx.rd]); // mov [ebp+rd], eax
+		if (ctx.flags & disassembler::S_BIT)
+			store_flags();
+		break;
+		/*
+	case INST::SBC_R: // Rd = Rn - shifter - !carry
+		s << "\xF5";                                   // cmc
+		s << "\x8B\x4D" << (char)OFFSET(regs[ctx.rn]); // mov ecx, [ebp+Rn]
+		__asm sbb ecx, 0
+		s << "\x1B\x4D" << (char)OFFSET(regs[ctx.rn]); // sbb ecx, 0
+		load_shifter_imm();
+		s << "\x2B\xC1";                               // sub eax, ecx
+		s << "\x89\x45" << (char)OFFSET(regs[ctx.rd]); // mov [ebp+rd], eax
+		if (ctx.flags & disassembler::S_BIT)
+			store_flags();
+		break;
+	*/
+
+
 	case INST::CLZ:
 		break_if_pc(ctx.rm);
 		break_if_pc(ctx.rd);
@@ -1129,6 +1338,60 @@ void compiler::compile_instruction()
 		s << "\x89\x45" << (char)OFFSET(regs[ctx.rd]); // mov [ebp+rd], eax
 		break;
 
+	case INST::MLA_R:
+		break_if_pc(ctx.rm);
+		break_if_pc(ctx.rs);
+		break_if_pc(ctx.rd);
+		break_if_pc(ctx.rn);
+		
+		// Rd = Rm * Rs + Rn
+		s << "\x33\xD2"; // xor edx, edx
+		s << "\x8B\x45" << (char)OFFSET(regs[ctx.rm]); // mov eax, [ebp+rm]
+		s << "\xF7\x65" << (char)OFFSET(regs[ctx.rs]); // mul [ebp+rs]
+		s << "\x03\x45" << (char)OFFSET(regs[ctx.rn]); // add eax, [ebp+Rn]
+		s << "\x89\x45" << (char)OFFSET(regs[ctx.rd]); // mov [ebp+rd], eax
+		// flag need to be updated to not be affected by high 32bit...
+		if (ctx.flags & disassembler::S_BIT)
+			store_flags();
+		break;
+	
+	case INST::UMULL:
+		s << "\x33\xD2"; // xor edx, edx
+		s << "\x8B\x45" << (char)OFFSET(regs[ctx.rm]); // mov eax, [ebp+rm]
+		s << "\xF7\x65" << (char)OFFSET(regs[ctx.rs]); // mul [ebp+rs]
+		s << "\x89\x45" << (char)OFFSET(regs[ctx.rd]); // mov [ebp+rd], eax
+		s << "\x89\x55" << (char)OFFSET(regs[ctx.rn]); // mov [ebp+rd], edx 
+		if (ctx.flags & disassembler::S_BIT)
+			store_flags();
+		break;
+	case INST::UMLAL:
+		s << "\x33\xD2"; // xor edx, edx
+		s << "\x8B\x45" << (char)OFFSET(regs[ctx.rm]); // mov eax, [ebp+rm]
+		s << "\xF7\x65" << (char)OFFSET(regs[ctx.rs]); // mul [ebp+rs]
+		s << "\x01\x45" << (char)OFFSET(regs[ctx.rd]); // add [ebp+rd], eax
+		s << "\x11\x55" << (char)OFFSET(regs[ctx.rn]); // adc [ebp+rd], edx 
+		if (ctx.flags & disassembler::S_BIT)
+			store_flags();
+		break;
+
+	case INST::SMULL:
+		s << "\x33\xD2"; // xor edx, edx
+		s << "\x8B\x45" << (char)OFFSET(regs[ctx.rm]); // mov eax, [ebp+rm]
+		s << "\xF7\x6D" << (char)OFFSET(regs[ctx.rs]); // imul [ebp+rs]
+		s << "\x89\x45" << (char)OFFSET(regs[ctx.rd]); // mov [ebp+rd], eax
+		s << "\x89\x55" << (char)OFFSET(regs[ctx.rn]); // mov [ebp+rd], edx 
+		if (ctx.flags & disassembler::S_BIT)
+			store_flags();
+		break;
+	case INST::SMLAL:
+		s << "\x33\xD2"; // xor edx, edx
+		s << "\x8B\x45" << (char)OFFSET(regs[ctx.rm]); // mov eax, [ebp+rm]
+		s << "\xF7\x6D" << (char)OFFSET(regs[ctx.rs]); // imul [ebp+rs]
+		s << "\x01\x45" << (char)OFFSET(regs[ctx.rd]); // add [ebp+rd], eax
+		s << "\x11\x55" << (char)OFFSET(regs[ctx.rn]); // adc [ebp+rd], edx 
+		if (ctx.flags & disassembler::S_BIT)
+			store_flags();
+		break;
 
 	case INST::MUL_R: // Rd = Rm * Rs (Rd must not be Rm)
 		break_if_pc(ctx.rm);
@@ -1143,6 +1406,26 @@ void compiler::compile_instruction()
 			store_flags();
 		break;
 
+	case INST::SWP:
+		s << "\x8B\x4D" << (char)OFFSET(regs[ctx.rn]); // mov ecx, [ebp+rn]
+		s << '\x51'; // push ecx
+		CALLP(load32)
+		s << '\x59'; // pop ecx
+		s << "\x8B\x55" << (char)OFFSET(regs[ctx.rm]); // mov edx, [ebp+rm]
+		s << "\x89\x45" << (char)OFFSET(regs[ctx.rd]); // mov [ebp+rd], eax
+		CALLP(store32)
+		break;
+
+	case INST::SWPB:
+		s << "\x8B\x4D" << (char)OFFSET(regs[ctx.rn]); // mov ecx, [ebp+rn]
+		s << '\x51'; // push ecx
+		CALLP(load8u)
+		s << '\x59'; // pop ecx
+		s << "\x8B\x55" << (char)OFFSET(regs[ctx.rm]); // mov edx, [ebp+rm]
+		s << "\x89\x45" << (char)OFFSET(regs[ctx.rd]); // mov [ebp+rd], eax
+		CALLP(store8)
+		break;
+
 	case INST::MRS_CPSR:
 	case INST::MRS_SPSR:
 		{
@@ -1155,6 +1438,36 @@ void compiler::compile_instruction()
 			break;
 		}
 
+	case INST::MSR_CPSR_I:
+	case INST::MSR_SPSR_I:
+		{
+			char sr = (char)OFFSET(cpsr);
+			if (ctx.instruction == INST::MSR_SPSR_R)
+				sr = (char)OFFSET(spsr);
+
+			// mask = Rn
+			break_if_pc(ctx.rm);
+
+			// todo: priviledge mode check depending on mask
+			if (ctx.rn == 0)
+				s << "\x90"; // nothing masked = nothing to write...
+			else
+			{
+				if (ctx.rn & 0x7)
+					CALLP(is_priviledged)
+				
+				s << '\xB8'; write(s, ctx.imm); // mov eax, imm
+				if (ctx.rn != 0xF)
+				{
+					// mask out
+					s << '\x25'; write(s, cpsr_masks[ctx.rn]); // and eax, mask imm
+				}
+				// store to cpsr
+				s << "\x89\x45" << sr; // mov [ebp+*psr], eax
+			}
+			break;
+		}
+
 	case INST::MSR_CPSR_R:
 	case INST::MSR_SPSR_R:
 		{
@@ -1164,7 +1477,6 @@ void compiler::compile_instruction()
 
 			// mask = Rn
 			break_if_pc(ctx.rm);
-			break_if_pc(ctx.rn);
 
 			// todo: priviledge mode check depending on mask
 			if (ctx.rn == 0)
@@ -1217,10 +1529,24 @@ void compiler::compile_instruction()
 		write(s, ctx.imm);                             // imm
 		store_flags();
 		break;
+	case INST::CMN_I:
+		break_if_pc(ctx.rn);		
+		s << "\xB8"; write( s, ctx.imm );              // mov eax, imm
+		s << "\x03\x45" << (char)OFFSET(regs[ctx.rn]); // add eax, [ebp+Rn]
+		store_flags();
+		break;
+
+
 	case INST::CMP_R:
 		break_if_pc(ctx.rn);
 		load_shifter_imm();
 		s << "\x39\x45" << (char)OFFSET(regs[ctx.rn]); // cmp [ebp+Rn], eax
+		store_flags();
+		break;
+	case INST::CMN_R:
+		break_if_pc(ctx.rn);
+		load_shifter_imm();
+		s << "\x03\x45" << (char)OFFSET(regs[ctx.rn]); // add eax, [ebp+Rn]
 		store_flags();
 		break;
 
@@ -1260,9 +1586,7 @@ void compiler::compile_instruction()
 					if (ctx.imm & (1 << 15))
 					{
 						// not tested!
-						s << DEBUG_BREAK;
-						s << "\x8B\x4D" << (char)OFFSET(regs[15]);             // mov ecx, [ebp+R15]
-						s << "\x81\xE1"; write( s, (unsigned long)(~PAGING::ADDRESS_MASK | 1) ); // and ecx, ~PAGING::ADDR_MASK | 1
+						load_r15_ecx();
 						s << "\x81\xC1"; write( s, (unsigned long)(inst+1) << INST_BITS); // add ecx, imm
 						s << '\x51'; // push ecx
 					}
@@ -1300,7 +1624,24 @@ void compiler::compile_instruction()
 		{
 			unsigned long num, highest, lowest;
 			bool region;
+			bool special = false; // rn needs backup
 			count( ctx.imm, num, lowest, highest, region );
+
+			if (ctx.instruction == INST::LDM_W)
+			{
+				if ((1 << ctx.rn) & ctx.imm)
+				{
+					// rn inside {regs}
+					if (!(((1 << ctx.rn) - 1) & ctx.imm))
+					{
+						// special case keep original
+						s << "\xFF\x75" << (char)OFFSET(regs[ctx.rn]); // push [ebp+rn]
+						special = true;
+					} else
+						ctx.instruction = INST::LDM; // keep loaded
+				}
+			}
+
 			switch (num)
 			{
 			case 0: // spec says this is undefined
@@ -1351,7 +1692,17 @@ void compiler::compile_instruction()
 			}
 			// w-bit is set, update destination register
 			if (ctx.instruction == INST::LDM_W)
+			{
+				// seems to depend on prefetches
+				// when rd is the first reg specified then dont update
+
+				// according to armwrestler
+		
+				if (special)
+					s << "\x8F\x45" << (char)OFFSET(regs[ctx.rn]); // pop dword ptr[ebp+rn]
 				update_dest(num);
+			}
+
 
 			// if PC was specified handle the jump!
 			if (ctx.imm & (1 << 15))
@@ -1398,8 +1749,7 @@ void compiler::epilogue(char *&mem, size_t &size)
 	//s << DEBUG_BREAK << '\xC3'; // terminate with int 3 and return
 
 	// branch to next page
-	s << "\x8B\x4D" << (char)OFFSET(regs[15]); // mov ecx, [ebp+R15]
-	s << "\x81\xE1"; write( s, (unsigned long)(~PAGING::ADDRESS_MASK | 1) ); // and ecx, ~PAGING::ADDR_MASK | 1
+	load_r15_ecx();
 	s << "\x81\xC1"; write( s, (unsigned long)PAGING::SIZE);  // add ecx, imm
 	s << "\x89\x4D" << (char)OFFSET(regs[15]); // mov [ebp+r15], ecx
 	JMPP(compile_and_link_branch_a)
