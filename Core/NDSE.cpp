@@ -218,12 +218,12 @@ void STDCALL ARM7_Init(Fiber::fiber_cb cb)
 
 emulation_context* ARM9_GetContext()
 {
-	return processor<_ARM9>::context;
+	return &processor<_ARM9>::context[0];
 }
 
 emulation_context* ARM7_GetContext()
 {
-	return processor<_ARM7>::context;
+	return &processor<_ARM7>::context[0];
 }
 
 

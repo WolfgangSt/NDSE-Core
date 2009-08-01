@@ -213,7 +213,6 @@ template <typename T> struct runner
 		// could safe the next call as evaluated within get_entry() above
 		processor<T>::last_page = memory_map<T>::addr2page( addr );
 		CONTEXT_EIP(fiber->context.uc_mcontext) = PtrToUlong(jit_code);
-		CONTEXT_EBP(fiber->context.uc_mcontext) = PtrToUlong(&processor<T>::context);
 	}
 
 	static void internal_cb(Fiber *f)
@@ -235,6 +234,7 @@ template <typename T> struct runner
 		{
 			initialized = true;
 			CONTEXT_EBX(f->context.uc_mcontext) = 0;
+			CONTEXT_EBP(f->context.uc_mcontext) = PtrToUlong(&processor<T>::context[0]);
 		}
 		if (skipsrc)
 			if (skipcb())

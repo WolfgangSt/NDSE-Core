@@ -1557,6 +1557,7 @@ void compiler::compile_instruction()
 		break_if_pc(ctx.rn);
 		s << "\x81\x7D" << (char)OFFSET(regs[ctx.rn]); // cmp [ebp+Rn],
 		write(s, ctx.imm);                             // imm
+		//s << '\xF5';                                   // cmc
 		store_flags();
 		break;
 	case INST::CMN_I:
@@ -1571,6 +1572,7 @@ void compiler::compile_instruction()
 		break_if_pc(ctx.rn);
 		load_shifter_imm();
 		s << "\x39\x45" << (char)OFFSET(regs[ctx.rn]); // cmp [ebp+Rn], eax
+		//s << '\xF5';                                   // cmc
 		store_flags();
 		break;
 	case INST::CMN_R:

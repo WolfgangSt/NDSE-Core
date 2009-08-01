@@ -21,12 +21,6 @@ union endian_access
 	unsigned char  b[4];
 };
 
-void fake_ipc_sync()
-{
-	unsigned long *pfifo = reinterpret_cast<unsigned long*>(&memory::registers9_1.blocks[0].mem[0x180]);
-	*pfifo = (*pfifo & ~0xF) | (((*pfifo >> 8) + 1) & 0xF);
-}
-
 unsigned long ipc_swizzle(unsigned long current, unsigned long other)
 {
 	// copy over bit 8-15 to 0-7
@@ -36,7 +30,6 @@ unsigned long ipc_swizzle(unsigned long current, unsigned long other)
 
 void io_observer::process9()
 {
-	bool remap_v = false;
 	for (unsigned int i = 0; i < memory::registers9_1.pages; i++)
 	{
 		memory_block &b = memory::registers9_1.blocks[i];
@@ -65,7 +58,6 @@ void io_observer::process9()
 					unsigned long ipc = ipc_swizzle(*cur, bmem[j]);
 					*cur = ipc;
 					reactor_data7[0][0x180 >> 2] = ipc;
-					//fake_ipc_sync();
 					break;
 				}
 			}
@@ -75,8 +67,6 @@ void io_observer::process9()
 			p[j] = bmem[j];
 		}
 	}
-	//if (remap_v)
-	//	vram::remap();
 }
 
 void io_observer::process7()

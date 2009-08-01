@@ -300,13 +300,18 @@ void HLE<T>::init()
 		unsigned long d = func - data - 5 - 10; // 3 bytes stackframe
 		unsigned long ret = 0xEFEF0000;
 		// input: ecx = arm addr, edx = context pointer
-		s << '\x55';                                      // push ebp
+
+		//s << '\x56';                                      // push esi
+		//s << '\x55';                                      // push ebp
+		s << '\x60';                                      // pushad
 		s << "\x8B\xEA";                                  // mov ebp, edx
 		s << "\xC7\x45" << (char)OFFSET(regs[14]);        // mov [ebp+LR]
 		s.write((char*)&ret, sizeof(ret));                //   , 0xEFEF0000
 		s << '\xE8'; s.write((char*)&d, sizeof(d));       // call func
 		s << "\xFF\xD0";                                  // call eax
-		s << '\x5D';                                      // pop ebp
+		s << '\x61';                                      // popad
+		//s << '\x5D';                                      // pop ebp
+		//s << '\x5E';                                      // pop esi
 		s << '\xC3';                                      // ret
 
 		std::string str = s.str();

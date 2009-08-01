@@ -5,9 +5,9 @@
 #include "vram.h"
 #include "dma.h"
 
-#define SILENT
+//#define SILENT
 
-
+// todo: outsource name lookup to an array ....
 
 
 union endian_access
@@ -33,6 +33,7 @@ void REGISTERS9_1::store32(unsigned long addr, unsigned long value)
 	unsigned long &current = *(unsigned long*)(&b->mem[subaddr]);
 	const char *name = 0;
 	bool nolog = false;
+	bool remap_vram = false;
 
 	switch (addr & 0x1FFF)
 	{
@@ -165,11 +166,11 @@ void REGISTERS9_1::store32(unsigned long addr, unsigned long value)
 		break;
 	case 0x240:
 		name = "[VRAMCNT] RAM bank control 0";
-		vram::remap();
+		remap_vram = true;
 		break;
 	case 0x244:
 		name = "[WRAMCNT] RAM bank control 1";
-		vram::remap();
+		remap_vram = true;
 		break;
 	case 0x444:
 		name = "[MTX_PUSH] Push current matrix to stack";
@@ -195,6 +196,8 @@ void REGISTERS9_1::store32(unsigned long addr, unsigned long value)
 	if (current != value)
 	{
 		current = value;
+		if (remap_vram)
+			vram::remap();
 		b->dirty();
 	}
 }
@@ -205,7 +208,8 @@ void REGISTERS9_1::store16(unsigned long addr, unsigned long value)
 	unsigned long subaddr = addr & (PAGING::ADDRESS_MASK & (~1));
 	unsigned short &current = *(unsigned short*)(&b->mem[subaddr]);
 	const char *name = 0;
-	//bool nolog = false;
+	bool nolog = false;
+	bool remap_vram = false;
 
 	switch (addr & 0x1FFF)
 	{
@@ -268,7 +272,7 @@ void REGISTERS9_1::store16(unsigned long addr, unsigned long value)
 
 	case 0x248:
 		name = "[VRAM_HI_CNT] RAM bank control 2";
-		vram::remap();
+		remap_vram = true;
 		break;
 	case 0x304:
 		name = "[POWCNT] Power control";
@@ -297,6 +301,8 @@ void REGISTERS9_1::store16(unsigned long addr, unsigned long value)
 	if (current != (unsigned short)value)
 	{
 		current = (unsigned short)value;
+		if (remap_vram)
+			vram::remap();
 		b->dirty();
 	}
 }
@@ -307,7 +313,7 @@ void REGISTERS9_1::store8(unsigned long addr, unsigned long value)
 	unsigned long subaddr = addr & (PAGING::ADDRESS_MASK);
 	unsigned char &current = *(unsigned char*)(&b->mem[subaddr]);
 	//const char *name = 0;
-	//bool nolog = false;
+	bool nolog = false;
 
 	switch (addr & 0x1FFF)
 	{
@@ -387,7 +393,7 @@ unsigned long REGISTERS9_1::load32(unsigned long addr)
 	unsigned long subaddr = addr & (PAGING::ADDRESS_MASK & (~3));
 	unsigned long &current = *(unsigned long*)(&b->mem[subaddr]);
 	const char *name = 0;
-	//bool nolog = true;
+	bool nolog = true;
 
 	switch (addr & 0x1FFF)
 	{
@@ -428,7 +434,7 @@ unsigned long REGISTERS9_1::load16u(unsigned long addr)
 	unsigned long subaddr = addr & (PAGING::ADDRESS_MASK & (~3));
 	unsigned short &current = *(unsigned short*)(&b->mem[subaddr]);
 	const char *name = 0;
-	//bool nolog = true;
+	bool nolog = true;
 
 	switch (addr & 0x1FFF)
 	{
@@ -472,7 +478,7 @@ unsigned long REGISTERS9_1::load8u(unsigned long addr)
 	unsigned long subaddr = addr & (PAGING::ADDRESS_MASK & (~3));
 	unsigned char &current = *(unsigned char*)(&b->mem[subaddr]);
 	const char *name = 0;
-	//bool nolog = true;
+	bool nolog = true;
 
 	switch (addr & 0x1FFF)
 	{
