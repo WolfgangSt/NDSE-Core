@@ -41,7 +41,7 @@ template <typename T, typename U>
 void update_breakinfo(char *eip, const compiled_block<U> *block)
 {
 	// TODO: handle CPU mode
-	unsigned long R15 = processor<T>::context[0].regs[15];
+	unsigned long R15 = processor<T>::ctx().regs[15];
 	// find the JIT instruction of the crash
 	int i = 0;
 	while ((eip >= block->remap[i+1]) && (i < block->REMAPS-1))
@@ -138,7 +138,7 @@ template <typename T> struct runner
 	static jit_function get_entry(unsigned long addr)
 	{
 		// TODO: handle CPU mode
-		processor<T>::context[0].regs[15] = addr & (~PAGING::ADDRESS_MASK);
+		processor<T>::ctx().regs[15] = addr & (~PAGING::ADDRESS_MASK);
 		memory_block *b = memory_map<T>::addr2page( addr );
 		if (b->flags & (memory_block::PAGE_INVALID | memory_block::PAGE_EXECPROT))
 			return 0;
@@ -209,7 +209,7 @@ template <typename T> struct runner
 
 		// set EIP and R15 according to addr
 		// TODO: handle CPU mode
-		processor<T>::context[0].regs[15] = addr;
+		processor<T>::ctx().regs[15] = addr;
 		// could safe the next call as evaluated within get_entry() above
 		processor<T>::last_page = memory_map<T>::addr2page( addr );
 		CONTEXT_EIP(fiber->context.uc_mcontext) = PtrToUlong(jit_code);
@@ -234,7 +234,7 @@ template <typename T> struct runner
 		{
 			initialized = true;
 			CONTEXT_EBX(f->context.uc_mcontext) = 0;
-			CONTEXT_EBP(f->context.uc_mcontext) = PtrToUlong(&processor<T>::context[0]);
+			CONTEXT_EBP(f->context.uc_mcontext) = PtrToUlong(&processor<T>::ctx());
 		}
 		if (skipsrc)
 			if (skipcb())
@@ -265,7 +265,7 @@ template <typename T> struct runner
 				{
 					// continue
 					// TODO: handle CPU mode
-					if (processor<T>::context[0].regs[15] & 1)
+					if (processor<T>::ctx().regs[15] & 1)
 						breakpoints<T, IS_THUMB>::step(skipmode);
 					else breakpoints<T, IS_ARM>::step(skipmode);
 					jit_continue();

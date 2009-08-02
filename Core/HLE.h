@@ -91,6 +91,9 @@ public:
 	static void FASTCALL(store8(unsigned long addr, unsigned long value));
 	static void store32_array(unsigned long addr, int num, unsigned long *data);
 
+	static emulation_context* FASTCALL(loadcpsr(unsigned long value, unsigned long mask));
+	static unsigned long FASTCALL(storecpsr());
+
 	static unsigned long FASTCALL(load32(unsigned long addr));
 	static unsigned long FASTCALL(load16u(unsigned long addr));
 	static unsigned long FASTCALL(load16s(unsigned long addr));
@@ -172,14 +175,14 @@ public:
 			break;
 		case NOCASH_EXT_VERS:
 			// TODO: handle CPU mode
-			processor<T>::context[0].regs[0] = NDSE_VERSION;
+			processor<T>::ctx().regs[0] = NDSE_VERSION;
 			break;
 		case NOCASH_EXT_SCRI:
 			{
 				// TODO: handle CPU mode
-				//unsigned long addr = processor<T>::context[0].regs[0];
-				//unsigned long size = processor<T>::context[0].regs[1];
-				unsigned long script = processor<T>::context[0].regs[2];
+				//unsigned long addr = processor<T>::ctx().regs[0];
+				//unsigned long size = processor<T>::ctx().regs[1];
+				unsigned long script = processor<T>::ctx().regs[2];
 				
 				stream_debugstring::context ctx;
 				ctx.pos = 0;
@@ -192,13 +195,13 @@ public:
 
 				logging<T>::log("Hostcalls are not supported yet");
 
-				processor<T>::context[0].regs[0] = 0;
+				processor<T>::ctx().regs[0] = 0;
 				break;
 			}
 		case NOCASH_EXT_RTSC:
 			{
 				// TODO: handle CPU mode
-				processor<T>::context[0].regs[0] = ((readtsc_fun)&read_tsc)();
+				processor<T>::ctx().regs[0] = ((readtsc_fun)&read_tsc)();
 				break;
 			}
 		default:

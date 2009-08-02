@@ -38,6 +38,7 @@ EXPORTS
 	ARM7_SourceLine
 	ARM7_Callstack
 	ARM7_Interrupt
+	ARM7_GetMode
 
 	ARM9_Stream
 	ARM9_DisassembleA
@@ -59,6 +60,7 @@ EXPORTS
 	ARM9_SourceLine
 	ARM9_Callstack
 	ARM9_Interrupt
+	ARM9_GetMode
 
 	DEBUGGER_GetSymbol
 	DEBUGGER_GetFilename

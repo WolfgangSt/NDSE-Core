@@ -2,26 +2,16 @@
 #define _PROCESSOR_H_
 
 #include "ArmContext.h"
-
+#include "CPUMode.h"
 
 template<typename T> class processor
 {
 private:
 	typedef memory_map<T> mem;
 public:
-	enum CPU_MODE
-	{
-		USER       = 0, // user/system
-		SUPERVISOR = 1, // svc
-		ABORT      = 2, // abt
-		UNDEFINED  = 3, // und
-		INTERRUPT  = 4, // irq
-		FASTINT    = 5, // fiq
-		MAX_MODES  = 6
-	};
-
-
-	static emulation_context context[MAX_MODES];
+	static emulation_context context[CPU_MAX_MODES];
+	static emulation_context *pcontext; // current modes context
+	static cpu_mode mode;
 
 	// holds the current page ARM code gets executed on
 	// updated in HLE branch command
@@ -61,6 +51,13 @@ public:
 
 	static memory_block* last_page;
 
+	// retrieves current context
+	static emulation_context &ctx()
+	{
+		return context[mode];
+		// return *pcontext;
+	}
+
 	static void reset_mapping()
 	{
 		memory::initializer<T>::initialize_mapping();
@@ -72,7 +69,10 @@ public:
 	}
 };
 
-template<typename T> emulation_context processor<T>::context[processor::MAX_MODES];
+template<typename T> emulation_context processor<T>::context[CPU_MAX_MODES];
+template<typename T> typename cpu_mode processor<T>::mode = CPU_USER;
+template<typename T> emulation_context* processor<T>::pcontext = 
+	&processor<T>::context[processor<T>::mode]; // should be in sync with ebp
 template<typename T> memory_block* processor<T>::last_page;
 
 #endif

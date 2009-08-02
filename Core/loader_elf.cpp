@@ -359,7 +359,7 @@ static bool load_debug(Dwarf_Debug dbg)
 				for (int i = 0; i < num; i++)
 				{
 					// add source info
-					std::cout << "Found sourcefile: " << sources[i] << "\n";
+					//std::cout << "Found sourcefile: " << sources[i] << "\n";
 					filemap[i] = source_debug::add_source(sources[i]);
 					dwarf_dealloc( dbg, sources[i], DW_DLA_STRING );
 				}

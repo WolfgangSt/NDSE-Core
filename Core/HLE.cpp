@@ -220,6 +220,106 @@ void HLE<T>::store32_array(unsigned long addr, int num, unsigned long *data)
 }
 
 
+
+
+// flags swizzle mask
+// eax-BIT x86-FLAG  PSR-BIT
+//    0       OF       28
+//    8       CF       29
+//    14      ZF       30
+//    15      SF       31
+
+// ................SZ.....C.......O (x86 flag dump)
+// SZ.....C.......O................ (<< 16)
+// ..C.......O..................... (<< 21)
+// ...O............................ (<< 28)
+// -------------------------------- (OR'ed)
+// SZCO...C..O....O................
+
+// CPSR read request
+template <typename T>
+unsigned long FASTCALL_IMPL(HLE<T>::storecpsr())
+{
+	unsigned long cpsr = processor<T>::ctx().cpsr;
+	unsigned long x86f = processor<T>::ctx().x86_flags;
+	cpsr &= 0x07FFFFFF;
+	x86f &= 0x0C101;
+	cpsr |= ((x86f << 16) | (x86f << 21) | (x86f << 28)) & 0x0F8000000;
+	return cpsr;
+}
+
+static const unsigned long mode_regs[CPU_MAX_MODES] = 
+{
+	15,
+	13,
+	13,
+	13,
+	13,
+	8
+}; // same for ARM9/ARM7
+
+template <typename T>
+emulation_context* FASTCALL_IMPL(HLE<T>::loadcpsr(unsigned long value, unsigned long mask))
+{
+	// update the CPSR this can trigger several things
+	// toggling thumb bit => rebranch
+	// toggling mode      => remap registers
+	// toggle flags       => update x86flags
+
+	unsigned long &cpsr = processor<T>::ctx().cpsr;
+	cpsr &= ~mask;
+	cpsr |= value & mask;
+
+	// sync x86 flags as needed
+	if (mask & 0xF8000000)
+	{
+		unsigned long &x86f = processor<T>::ctx().x86_flags;
+		unsigned long flags = cpsr & 0xF8000000;
+		x86f = ((flags >> 16) | (flags >> 21) | (flags >> 28)) & 0x0C101;
+	}
+
+	// this has to be done last as cpsr migh need to be duplicated to new mode
+	if (mask & 0x1F)
+	{
+		// mode change
+		unsigned long mode = cpsr & 0x1F;
+		unsigned long cpumode = 0;
+		switch (cpsr & 0x1F)
+		{
+		case 0x11: cpumode++; // FIQ
+		case 0x12: cpumode++; // IRQ
+		case 0x1B: cpumode++; // Undefined
+		case 0x14: cpumode++; // Abort
+		case 0x13: cpumode++; // Supervisor
+		case 0x1F: // System
+		case 0x10: // User
+			{
+				unsigned long oldmode = processor<T>::mode;
+				if (oldmode == cpumode)
+					break; // no change
+	
+				emulation_context &old_mode = processor<T>::context[oldmode];
+				emulation_context &new_mode = processor<T>::context[cpumode];
+
+				// copy registers
+				unsigned long m = std::min( mode_regs[oldmode], mode_regs[cpumode] );
+				for (unsigned int i = 0; i < m; i++)
+					new_mode.regs[i] = old_mode.regs[i];
+				new_mode.regs[15] = old_mode.regs[15];
+				new_mode.cpsr = old_mode.cpsr;
+
+				// switch to new mode
+				processor<T>::mode = (cpu_mode)cpumode;
+				break;
+			}
+		default:
+			logging<T>::logf("Modeswitch to invalid mode: %02x", mode);
+			DebugBreak_();
+		}
+	}
+	return &processor<T>::ctx();
+}
+
 template <typename T> struct dirty_flag {};
 template <> struct dirty_flag<_ARM9> { enum { VALUE = memory_block::PAGE_DIRTY_J9 }; };
 template <> struct dirty_flag<_ARM7> { enum { VALUE = memory_block::PAGE_DIRTY_J7 }; };
@@ -393,16 +493,16 @@ public:
 		// at function entrance
 
 		// TODO: handle cpu mode
-		HLE<_ARM9>::invoke(f_open, &processor<_ARM9>::context[0]);
-		unsigned long hdr = processor<_ARM9>::context[0].regs[0];
+		HLE<_ARM9>::invoke(f_open, &processor<_ARM9>::ctx());
+		unsigned long hdr = processor<_ARM9>::ctx().regs[0];
 		return hdr;
 	}
 	unsigned char get8()
 	{
 		// TODO: handle cpu mode
-		processor<_ARM9>::context[0].regs[0] = src++;
-		HLE<_ARM9>::invoke(f_get8, &processor<_ARM9>::context[0]);
-		return (unsigned char)processor<_ARM9>::context[0].regs[0];
+		processor<_ARM9>::ctx().regs[0] = src++;
+		HLE<_ARM9>::invoke(f_get8, &processor<_ARM9>::ctx());
+		return (unsigned char)processor<_ARM9>::ctx().regs[0];
 	}
 
 	void skip(unsigned int num)
@@ -427,12 +527,12 @@ public:
 	void init()
 	{
 		// TODO: handle CPU mode
-		src = processor<_ARM9>::context[0].regs[0];
-		dst = processor<_ARM9>::context[0].regs[1];
-		cbp = processor<_ARM9>::context[0].regs[2];
-		lr = processor<_ARM9>::context[0].regs[14];
-		pc = processor<_ARM9>::context[0].regs[15];
-		unsigned long cb = processor<_ARM9>::context[0].regs[3];
+		src = processor<_ARM9>::ctx().regs[0];
+		dst = processor<_ARM9>::ctx().regs[1];
+		cbp = processor<_ARM9>::ctx().regs[2];
+		lr = processor<_ARM9>::ctx().regs[14];
+		pc = processor<_ARM9>::ctx().regs[15];
+		unsigned long cb = processor<_ARM9>::ctx().regs[3];
 
 		if (src & 3)
 			logging<_ARM9>::logf("SWI 12h Warning: Source Address not aligned: %08X", src);
@@ -469,8 +569,8 @@ public:
 	{
 		// TODO: handle CPU mode
 		flush();
-		processor<_ARM9>::context[0].regs[14] = lr;
-		processor<_ARM9>::context[0].regs[15] = pc;
+		processor<_ARM9>::ctx().regs[14] = lr;
+		processor<_ARM9>::ctx().regs[15] = pc;
 	}
 };
 
@@ -523,9 +623,9 @@ template <typename T> void HLE<T>::crc16()
 
 	// TODO: handle CPU mode
 	stream_crc16::context ctx;
-	ctx.crc  = processor<T>::context[0].regs[0];
-	unsigned long addr = processor<T>::context[0].regs[1];
-	unsigned long len  = processor<T>::context[0].regs[2];
+	ctx.crc  = processor<T>::ctx().regs[0];
+	unsigned long addr = processor<T>::ctx().regs[1];
+	unsigned long len  = processor<T>::ctx().regs[2];
 	if (addr & 1)
 	{
 		logging<T>::logf("Address not aligned: %08X", addr);
@@ -537,7 +637,7 @@ template <typename T> void HLE<T>::crc16()
 		DebugBreak_();
 	}
 	memory_map<T>::process_memory<stream_crc16>( addr, len, ctx );
-	processor<T>::context[0].regs[0] = ctx.crc;
+	processor<T>::ctx().regs[0] = ctx.crc;
 }
 
 
@@ -568,7 +668,7 @@ template <typename T> void HLE<T>::delay()
 
 	// delays for approx r0/8388 msecs
 	// TODO: handle CPU mode
-	QPseudoThread::do_sleep(processor<T>::context[0].regs[0] / 8388);
+	QPseudoThread::do_sleep(processor<T>::ctx().regs[0] / 8388);
 }
 
 template <typename T> void HLE<T>::wait_vblank()
@@ -683,6 +783,8 @@ void symbols::init()
 	syms[(void*)HLE<_ARM9>::popcallstack]              = "arm9::dbg::callstack::pop";
 	syms[(void*)HLE<_ARM9>::swi]                       = "arm9::swi";
 	syms[(void*)HLE<_ARM9>::debug_magic]               = "arm9::debugmagic";
+	syms[(void*)HLE<_ARM9>::loadcpsr]                  = "arm9::cpsr::load";
+	syms[(void*)HLE<_ARM9>::storecpsr]                 = "arm9::cpsr::store";
 
 	syms[(void*)HLE<_ARM7>::load32]                    = "arm7::mem::load32";
 	syms[(void*)HLE<_ARM7>::load16u]                   = "arm7::mem::load16u";
@@ -700,4 +802,6 @@ void symbols::init()
 	syms[(void*)HLE<_ARM7>::popcallstack]              = "arm7::dbg::callstack::pop";
 	syms[(void*)HLE<_ARM7>::swi]                       = "arm7::swi";
 	syms[(void*)HLE<_ARM7>::debug_magic]               = "arm7::debugmagic";
+	syms[(void*)HLE<_ARM7>::loadcpsr]                  = "arm7::cpsr::load";
+	syms[(void*)HLE<_ARM7>::storecpsr]                 = "arm7::cpsr::store";
 }

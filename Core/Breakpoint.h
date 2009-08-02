@@ -235,7 +235,7 @@ private:
 		case INST::BLX:
 		case INST::BX:
 			// TODO: handle CPU mode
-			dest = processor<T>::context[0].regs[ctx.rm];
+			dest = processor<T>::ctx().regs[ctx.rm];
 			return true;
 		}
 		return false;
@@ -304,7 +304,7 @@ public:
 		{
 			// use R15
 			// TODO: handle CPU mode
-			unsigned long addr = processor<T>::context[0].regs[15];
+			unsigned long addr = processor<T>::ctx().regs[15];
 			unsigned long next_addr = addr + U::INSTRUCTION_SIZE;
 			set_onetime( addr, 0, next_addr, 0, 2 );
 		}

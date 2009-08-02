@@ -335,9 +335,32 @@ void compiler::load_eax_ecx_or_reg(int r1, int r2)
 	}
 }
 
+unsigned long _31 = 31;
+
 void compiler::shiftop_eax_ecx()
 {
-	// TODO add code to handle ecx > 255 (31)
+	// clamp ecx at 31
+	std::ostringstream::pos_type jmpbyte;
+
+	// shift amount 0  => bypass shifter and keep carry
+	// shift amount 32 => LSL: load 0, carry = lowest in bit
+	//                    LSR: load 0, carry = highest in bit
+	//                    ASR: same as shift 31, carry = highest bit
+	//                    ROR: not clamped but masked!
+
+	// load carry from x86flags to esi in case we do a 0 shift to keep it       
+	s << "\x8B\x75" << (char)OFFSET(x86_flags); // mov esi, [ebp+x86_flags]
+	s << "\xC1\xEE\x08";                        // shr esi, 8 (CF in bit 0)
+	s << "\x0B\xC9";       // or ecx, ecx
+	s << '\x74';           // jz
+	jmpbyte = s.tellp();
+	s << '\x00';           //  + $0 
+	s << "\x6A\x1F"        // push 0x1F
+	  << '\x5E'            // pop esi
+	  << "\x3B\xCE"        // cmp ecx, esi
+	  << "\x0F\x47\xCE";   // cmova ecx, esi 
+
+	// add carry out handling for shifts > 31!
 	switch (ctx.shift)
 	{
 	case SHIFT::LSL:
@@ -353,6 +376,20 @@ void compiler::shiftop_eax_ecx()
 		s << "\xD3\xC8"; // ror eax, cl
 		break;
 	}
+	store_carry(); // "\xD1\xD6"; // rcl esi, 1
+
+	std::ostringstream::pos_type cur = s.tellp();
+	size_t off = cur - jmpbyte - 1;
+	if(off >= 128)
+	{
+		std::cerr << "Generated code too large: " << off << "\n";			
+		assert(0);
+	}
+	s.seekp( jmpbyte );
+	s << (char)off;
+	s.seekp( cur );
+
+	// 0 amount shift (do nothing)
 }
 
 
@@ -639,7 +676,7 @@ void compiler::compile_instruction()
 			// conditions are _reversed_ in the jumps because a jump taken
 			// means the instruction will _not_ be executed.
 			case CONDITION::EQ: s << '\x75'; break; // jnz  (ZF = 0)
-			case CONDITION::NE: s << '\x74'; break; // jz   (ZF = 0)
+			case CONDITION::NE: s << '\x74'; break; // jz   (ZF = 1)
 			case CONDITION::CS: s << '\x73'; break; // jnc  (CF = 0)
 			case CONDITION::CC: s << '\x72'; break; // jc   (CF = 1)
 			case CONDITION::MI: s << '\x79'; break; // jns  (SF = 0)
@@ -722,7 +759,7 @@ void compiler::compile_instruction()
 		if (ctx.flags & disassembler::S_BIT)
 		{
 			// todo optimize the flagcheck (doesnt need to do the cmp)
-			store_carry();
+			//store_carry();
 			s << "\x83\xC8" << '\x0'; // or eax, 0
 			load_carry();
 			store_flags();
@@ -1244,11 +1281,12 @@ void compiler::compile_instruction()
 			break;
 		}
 
-	case INST::SBC_I: // Rd = Rn - imm - carry
+	case INST::SBC_I: // Rd = Rn - imm - !carry
 		{
 			if (!flags_actual)
 				load_flags();
 			s << "\x8B\x45" << (char)OFFSET(regs[ctx.rn]); // mov eax, [ebp+rn]
+			s << "\xF5";                                   // cmc
 			s << "\x1D" << (unsigned long)(ctx.imm);       // sbb eax, imm
 			s << "\x89\x45" << (char)OFFSET(regs[ctx.rd]); // mov [ebp+rd], eax
 			if (ctx.flags & disassembler::S_BIT)
@@ -1256,19 +1294,21 @@ void compiler::compile_instruction()
 			break;
 		}
 
-	case INST::SBC_R: // Rd = Rn - shifter_imm - carry
+	case INST::SBC_R: // Rd = Rn - shifter_imm - !carry
 		{
 			// optimize (see RSC)
 			load_shifter_imm();
+			s << "\x8B\xC8";                               // mov ecx, eax (flagload destroy eax)
 			if (!flags_actual)
 				load_flags();
+			s << "\xF5";                                   // cmc
 			if (ctx.rn == ctx.rd)
 			{
-				s << "\x19\x45" << (char)OFFSET(regs[ctx.rn]); // sbb [ebp+Rn], eax
+				s << "\x19\x4D" << (char)OFFSET(regs[ctx.rn]); // sbb [ebp+Rn], ecx
 			} else
 			{
 				s << "\x8B\x55" << (char)OFFSET(regs[ctx.rn]); // mov edx, [ebp+Rn]
-				s << "\x1B\xD0";                               // sbb edx, eax
+				s << "\x1B\xD1";                               // sbb edx, ecx
 				s << "\x89\x55" << (char)OFFSET(regs[ctx.rd]); // mov [ebp+rd], edx
 			}
 			if (ctx.flags & disassembler::S_BIT)
@@ -1329,9 +1369,9 @@ void compiler::compile_instruction()
 	case INST::RSC_R: // Rd = shifter - Rn - !carry
 		if (!flags_actual)
 			load_flags();
-		//s << "\xF5";                                   // cmc
-		s << "\xB9" << (unsigned long)0;               // mov ecx, 0
-		s << "\x1B\x4D" << (char)OFFSET(regs[ctx.rn]); // sbb ecx, [ebp+Rn]
+		s << "\xF5";                                   // cmc
+		s << "\x8B\x4D" << (char)OFFSET(regs[ctx.rn]); // mov ecx, [ebp+Rn]
+		s << "\x83\xD1" << '\x00';                     // adc ecx, 0
 		load_shifter_imm();
 		s << "\x2B\xC1";                               // sub eax, ecx
 		s << "\x89\x45" << (char)OFFSET(regs[ctx.rd]); // mov [ebp+rd], eax
@@ -1428,10 +1468,18 @@ void compiler::compile_instruction()
 		break_if_pc(ctx.rs);
 		break_if_pc(ctx.rd);
 
-		s << "\x33\xD2"; // xor edx, edx
+		
 		s << "\x8B\x45" << (char)OFFSET(regs[ctx.rm]); // mov eax, [ebp+rm]
-		s << "\xF7\x65" << (char)OFFSET(regs[ctx.rs]); // mul [ebp+rs]
+		s << '\x99';                                   // cdq (sign extend)
+		//s << "\x33\xD2";                               // xor edx, edx (zero extend)
+		//s << "\xF7\x65" << (char)OFFSET(regs[ctx.rs]); // mul [ebp+rs]
+		
+		s << "\xF7\x6D" << (char)OFFSET(regs[ctx.rs]); // imul [ebp+rs]
 		s << "\x89\x45" << (char)OFFSET(regs[ctx.rd]); // mov [ebp+rd], eax
+		s << "\x0B\xC0";                               // or eax, eax // flag update
+
+		
+		
 		if (ctx.flags & disassembler::S_BIT)
 			store_flags();
 		break;
@@ -1459,25 +1507,27 @@ void compiler::compile_instruction()
 	case INST::MRS_CPSR:
 	case INST::MRS_SPSR:
 		{
-			char sr = (char)OFFSET(cpsr);
-			if (ctx.instruction == INST::MRS_SPSR)
-				sr = (char)OFFSET(spsr);
 			break_if_pc(ctx.rd);
-			s << "\x8B\x45" << sr;                         // mov eax, [ebp+*psr]
-			s << "\x89\x45" << (char)OFFSET(regs[ctx.rd]); // mov [ebp+rd], eax
+			if (ctx.instruction == INST::MRS_SPSR)
+				s << "\x8B\x4D" << (char)OFFSET(spsr);
+			else
+			{
+				CALLP(storecpsr)
+			}
+			s << "\x89\x45" << (char)OFFSET(regs[ctx.rd]);     // mov [ebp+rd], eax
 			break;
 		}
 
 	case INST::MSR_CPSR_I:
 	case INST::MSR_SPSR_I:
 		{
+			break_if_pc(ctx.rm);
+			/*
 			char sr = (char)OFFSET(cpsr);
 			if (ctx.instruction == INST::MSR_SPSR_R)
 				sr = (char)OFFSET(spsr);
 
 			// mask = Rn
-			break_if_pc(ctx.rm);
-
 			// todo: priviledge mode check depending on mask
 			if (ctx.rn == 0)
 				s << "\x90"; // nothing masked = nothing to write...
@@ -1492,8 +1542,55 @@ void compiler::compile_instruction()
 					// mask out
 					s << '\x25'; write(s, cpsr_masks[ctx.rn]); // and eax, mask imm
 				}
+				
+
 				// store to cpsr
 				s << "\x89\x45" << sr; // mov [ebp+*psr], eax
+
+				if (ctx.rn & 0x8)
+				{
+					// update x86 flags
+					// eax-BIT x86-FLAG  PSR-BIT
+					//   0       OF        28
+					//   8       CF        29
+					//   14      ZF        30
+					//   15      SF        31
+					s << '\x25'; write(s, (unsigned long)0x0F8000000); // and eax, 0x0F8000000
+					s << "\x8B\xD0";                                   // mov edx, eax
+					s << "\xC1\xE8\x10";                               // shr eax, 16 (ZF and SF placed)
+					s << "\xC1\xEA\x15";                               // shr edx, 21 (CF placed)
+					s << "\x0B\xC2";                                   // or eax, edx
+					s << "\xC1\xEA\x07";                               // shr edx, 7 (OF placed)
+					s << "\x0B\xC2";                                   // or eax, edx
+					s << '\x25'; write(s, (unsigned long)0xC101);      // and eax, 0C101h 
+					s << "\x89\x45" << (char)OFFSET(x86_flags);        // mov [ebp+x86_flags], eax
+				}
+			}
+			*/
+
+			if (ctx.rn == 0)
+			{
+				s << "\x90"; // nothing masked = nothing to change ...nop...
+				break;
+			}
+
+			if (ctx.instruction == INST::MSR_SPSR_I)
+			{
+				s << '\xB8'; write(s, ctx.imm);                // mov eax, imm
+				if (ctx.rn != 0xF)
+				{
+					// mask out
+					s << '\x25'; write(s, cpsr_masks[ctx.rn]); // and eax, mask imm
+				}
+				s << "\x89\x45" << (char)OFFSET(spsr);         // mov [ebp+spsr], eax
+			}
+			else
+			{
+				// ecx edx
+				s << '\xB9'; write(s, ctx.imm);                // mov ecx, imm
+				s << '\xBA'; write(s, cpsr_masks[ctx.rn]);     // mov edx, mask
+				CALLP(loadcpsr)
+				s << "\x8B\xE8";                               // mov ebp, eax handle register set swap
 			}
 			break;
 		}
@@ -1501,12 +1598,15 @@ void compiler::compile_instruction()
 	case INST::MSR_CPSR_R:
 	case INST::MSR_SPSR_R:
 		{
+			break_if_pc(ctx.rm);
+
+			/*
 			char sr = (char)OFFSET(cpsr);
 			if (ctx.instruction == INST::MSR_SPSR_R)
 				sr = (char)OFFSET(spsr);
 
 			// mask = Rn
-			break_if_pc(ctx.rm);
+			
 
 			// todo: priviledge mode check depending on mask
 			if (ctx.rn == 0)
@@ -1524,6 +1624,31 @@ void compiler::compile_instruction()
 				}
 				// store to cpsr
 				s << "\x89\x45" << sr; // mov [ebp+*psr], eax
+			}
+			*/
+
+			if (ctx.rn == 0)
+			{
+				s << "\x90"; // nothing masked = nothing to change ...nop...
+				break;
+			}
+
+			
+			if (ctx.instruction == INST::MSR_SPSR_R)
+			{
+				s << "\x8B\x45" << (char)OFFSET(regs[ctx.rm]);     // mov eax, [ebp+Rm]
+				if (ctx.rn != 0xF)
+				{
+					// mask out
+					s << '\x25'; write(s, cpsr_masks[ctx.rn]); // and eax, mask imm
+				}
+				s << "\x89\x45" << (char)OFFSET(spsr);         // mov [ebp+spsr], eax
+			} else
+			{
+				s << "\x8B\x4D" << (char)OFFSET(regs[ctx.rm]); // mov eax, [ebp+Rm]
+				s << '\xBA'; write(s, cpsr_masks[ctx.rn]);     // mov edx, mask
+				CALLP(loadcpsr)
+				s << "\x8B\xE8";                               // mov ebp, eax handle register set swap
 			}
 			break;
 		}

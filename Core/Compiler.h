@@ -104,6 +104,8 @@ private:
 	void* load16s;
 	void* load8u;
 	void* load32_array;
+	void* loadcpsr;
+	void* storecpsr;
 	
 	void* pushcallstack;
 	void* popcallstack;
@@ -131,6 +133,9 @@ public:
 		load16s = HLE<T>::load16s;
 		load8u = HLE<T>::load8u;
 		load32_array = HLE<T>::load32_array;
+
+		loadcpsr = HLE<T>::loadcpsr;
+		storecpsr = HLE<T>::storecpsr;
 
 		pushcallstack = HLE<T>::pushcallstack;
 		popcallstack = HLE<T>::popcallstack;
@@ -164,17 +169,20 @@ public:
 			c.lookahead_s = (cnext.flags & disassembler::S_BIT);
 			if (c.lookahead_s)
 			{
-				// check if instruction is flag consuming
+				// check if lookahead instruction is flag consuming
 				switch (cnext.instruction)
 				{
 				case INST::ADC_I:
 				case INST::ADC_R:
 				case INST::ADC_RR:
-					c.lookahead_s = false;
+				case INST::SBC_I:
+				case INST::SBC_R:
+				case INST::SBC_RR:
+					c.lookahead_s = 0;
 				}
 
 				if (cnext.shift == SHIFT::RXX)
-					c.lookahead_s = false;
+					c.lookahead_s = 0;
 			}
 			c.compile_instruction();
 		}

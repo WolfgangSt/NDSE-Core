@@ -11,6 +11,7 @@
 #include "jitcode.h"
 #include "SourceInfo.h"
 #include "HLE.h"
+#include "CPUMode.h"
 
 #ifdef WIN32
 #define STDCALL __stdcall 
@@ -48,7 +49,7 @@ IMPORT void STDCALL ARM7_Log(log_callback cb);
 IMPORT void STDCALL ARM7_Init(Fiber::fiber_cb cb);
 IMPORT bool STDCALL ARM7_Continue();
 IMPORT void STDCALL ARM7_Step(breakpoint_defs::stepmode mode);
-IMPORT emulation_context* ARM7_GetContext();
+IMPORT emulation_context* STDCALL ARM7_GetContext();
 IMPORT host_context* STDCALL ARM7_GetException();
 IMPORT breakpoint_defs::break_info* STDCALL ARM7_GetDebuggerInfo();
 IMPORT void STDCALL ARM7_ToggleBreakpointA(unsigned long addr, unsigned long subcode);
@@ -61,6 +62,7 @@ IMPORT void STDCALL ARM7_SetPC(unsigned long addr);
 IMPORT source_info* STDCALL ARM7_SourceLine(unsigned long addr, int idx);
 IMPORT callstack_context* STDCALL ARM7_Callstack();
 IMPORT void STDCALL ARM7_Interrupt(unsigned long intr);
+IMPORT cpu_mode STDCALL ARM7_GetMode();
 
 IMPORT memory_block* STDCALL ARM9_GetPage(unsigned long addr);
 IMPORT const char* STDCALL ARM9_DisassembleA(unsigned long op, unsigned long addr);
@@ -69,7 +71,7 @@ IMPORT void STDCALL ARM9_Log(log_callback cb);
 IMPORT void STDCALL ARM9_Init(Fiber::fiber_cb cb);
 IMPORT bool STDCALL ARM9_Continue();
 IMPORT void STDCALL ARM9_Step(breakpoint_defs::stepmode mode);
-IMPORT emulation_context* ARM9_GetContext();
+IMPORT emulation_context* STDCALL ARM9_GetContext();
 IMPORT host_context* STDCALL ARM9_GetException();
 IMPORT breakpoint_defs::break_info* STDCALL ARM9_GetDebuggerInfo();
 IMPORT void STDCALL ARM9_ToggleBreakpointA(unsigned long addr, unsigned long subcode);
@@ -82,7 +84,7 @@ IMPORT void STDCALL ARM9_SetPC(unsigned long addr);
 IMPORT source_info* STDCALL ARM9_SourceLine(unsigned long addr, int idx);
 IMPORT callstack_context* STDCALL ARM9_Callstack();
 IMPORT void STDCALL ARM9_Interrupt(unsigned long intr);
-
+IMPORT cpu_mode STDCALL ARM9_GetMode();
 
 IMPORT bool STDCALL UTIL_LoadFile(const char *filename, util::load_result *result, util::load_hint lh);
 IMPORT memory_region_base* STDCALL MEM_GetVRAM(int bank);

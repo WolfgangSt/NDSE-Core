@@ -85,7 +85,7 @@ private:
 			// shouldnt reach here might be unstable otherwise...
 			std::cout << "Fiber crashed. Please restart." << std::endl;
 		}
-		assert(0);
+		//assert(0);
 	}
 public:
 	WinFiber(size_t stacksize, fiber_cb cb) : cb(cb)

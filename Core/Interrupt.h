@@ -114,7 +114,7 @@ template <> inline void interrupt<_ARM9>::poll_process()
 	unsigned long intr = (unsigned long)_InterlockedExchange(&signaled, 0);
 
 	// todo: handle cpu mode switch!
-	emulation_context &ctx = processor<_ARM9>::context[0];
+	emulation_context &ctx = processor<_ARM9>::ctx();
 	emulation_context backup = ctx;
 	for (unsigned long mask = 1; mask; mask <<= 1)
 	{
@@ -175,7 +175,7 @@ template <> inline void interrupt<_ARM7>::poll_process()
 		unsigned long addr = istack->irq_handler;
 		//logging<_ARM7>::logf("Interrupt to %08X", addr); 
 		// TODO: handle CPU mode switch!
-		emulation_context &ctx = processor<_ARM7>::context[0];
+		emulation_context &ctx = processor<_ARM7>::ctx();
 		emulation_context backup = ctx;
 		
 		

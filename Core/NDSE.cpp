@@ -216,14 +216,24 @@ void STDCALL ARM7_Init(Fiber::fiber_cb cb)
 	runner<_ARM7>::jit_init(cb);
 }
 
-emulation_context* ARM9_GetContext()
+emulation_context* STDCALL ARM9_GetContext()
 {
 	return &processor<_ARM9>::context[0];
 }
 
-emulation_context* ARM7_GetContext()
+emulation_context* STDCALL ARM7_GetContext()
 {
 	return &processor<_ARM7>::context[0];
+}
+
+cpu_mode STDCALL ARM9_GetMode()
+{
+	return processor<_ARM9>::mode;
+}
+
+cpu_mode STDCALL ARM7_GetMode()
+{
+	return processor<_ARM7>::mode;
 }
 
 
@@ -263,7 +273,7 @@ void STDCALL ARM7_ToggleBreakpointT(unsigned long addr, unsigned long subcode )
 void STDCALL ARM9_Step(breakpoint_defs::stepmode mode)
 {
 	// TODO: handle CPU mode
-	if (processor<_ARM9>::context[0].regs[15] & 1)
+	if (processor<_ARM9>::ctx().regs[15] & 1)
 		breakpoints<_ARM9, IS_THUMB>::step(mode);
 	else breakpoints<_ARM9, IS_ARM>::step(mode);
 }
@@ -271,7 +281,7 @@ void STDCALL ARM9_Step(breakpoint_defs::stepmode mode)
 void STDCALL ARM7_Step(breakpoint_defs::stepmode mode)
 {
 	// TODO: handle CPU mode
-	if (processor<_ARM7>::context[0].regs[15] & 1)
+	if (processor<_ARM7>::ctx().regs[15] & 1)
 		breakpoints<_ARM7, IS_THUMB>::step(mode);
 	else breakpoints<_ARM7, IS_ARM>::step(mode);
 }
