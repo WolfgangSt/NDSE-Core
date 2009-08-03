@@ -72,6 +72,8 @@ private:
 	void generic_postload_shift();
 	void generic_load_x();
 	void generic_store_x();
+	void ldm_switchuser();
+	void ldm_switchback();
 
 	void generic_load_post();
 

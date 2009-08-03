@@ -148,7 +148,8 @@ const char* INST::strings[] = {
 	"SWP%c %Rd,%Rm,[%Rn]",
 	"SWPB%c %Rd,%Rm,[%Rn]",
 
-	"BLX%c #0x%A"
+	"BLX%c #0x%A".
+	"LDRD"
 
 };
 
@@ -291,10 +292,10 @@ const char* INST::strings[] = {
 	"mrc%c %Cp,%C1,%Rd,%CRn,%CRm,%C2",
 	"mcr%c %Cp,%C1,%Rd,%CRn,%CRm,%C2",
 
-	"stm%c%M %Rn,{%RL}",
-	"ldm%c%M %Rn,{%RL}",
-	"stm%c%M %Rn!,{%RL}",
-	"ldm%c%M %Rn!,{%RL}",
+	"stm%c%M %Rn,{%RL}%^",
+	"ldm%c%M %Rn,{%RL}%^",
+	"stm%c%M %Rn!,{%RL}%^",
+	"ldm%c%M %Rn!,{%RL}%^",
 
 	"str%c%E %Rd,[%-%Rn],#0x%I",
 	"ldr%c%E %Rd,[%-%Rn],#0x%I",
@@ -325,7 +326,8 @@ const char* INST::strings[] = {
 	"swp%c %Rd,%Rm,[%Rn]",
 	"swpb%c %Rd,%Rm,[%Rn]",
 
-	"blx%c #0x%A"
+	"blx%c #0x%A",
+	"ldrd"
 
 };
 

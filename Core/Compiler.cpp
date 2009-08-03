@@ -335,6 +335,28 @@ void compiler::load_eax_ecx_or_reg(int r1, int r2)
 	}
 }
 
+// switch register banks temporarily to usermode
+void compiler::ldm_switchuser()
+{
+	if (ctx.flags & disassembler::S_BIT)
+	{
+		s << "\xFF\x75" << (char)OFFSET(cpsr);      // push cpsr
+		s << '\xB9'; write(s, (unsigned long)0x10); // mov ecx, 0x10 (user mode)
+		s << '\xBA'; write(s, (unsigned long)0x1F); // mov edx, 0x1F (mode mask)
+		CALLP(loadcpsr)
+		s << '\x59';                                // pop ecx (old mode)
+	}
+}
+
+void compiler::ldm_switchback()
+{
+	if (ctx.flags & disassembler::S_BIT)
+	{
+		s << '\xBA'; write(s, (unsigned long)0x1F);  // mov edx, 0x1F (mode mask)
+		CALLP(loadcpsr)
+	}
+}
+
 unsigned long _31 = 31;
 
 void compiler::shiftop_eax_ecx()
@@ -354,11 +376,25 @@ void compiler::shiftop_eax_ecx()
 	s << "\x0B\xC9";       // or ecx, ecx
 	s << '\x74';           // jz
 	jmpbyte = s.tellp();
-	s << '\x00';           //  + $0 
-	s << "\x6A\x1F"        // push 0x1F
-	  << '\x5E'            // pop esi
-	  << "\x3B\xCE"        // cmp ecx, esi
-	  << "\x0F\x47\xCE";   // cmova ecx, esi 
+	s << '\x00';           //  + $0
+
+
+	switch (ctx.shift)
+	{
+	case SHIFT::ROR:
+		s << "\x83\xE1\x1F";   // and ecx, 0x1F wrap around
+		break;
+	case SHIFT::LSR:
+	case SHIFT::ASR:
+		s << '\x49';           // dec ecx use additional shift,1 step
+	default:
+		// sature shift
+		s << "\x6A\x1F"        // push 0x1F
+		  << '\x5E'            // pop esi
+		  << "\x3B\xCE"        // cmp ecx, esi
+		  << "\x0F\x47\xCE";   // cmova ecx, esi 
+	}
+	
 
 	// add carry out handling for shifts > 31!
 	switch (ctx.shift)
@@ -368,15 +404,18 @@ void compiler::shiftop_eax_ecx()
 		break;
 	case SHIFT::LSR:
 		s << "\xD3\xE8"; // shr eax, cl
+		s << "\xC1\xE8" << (char)1; // shr eax, imm
 		break;
 	case SHIFT::ASR:
 		s << "\xD3\xF8"; // sar eax, cl
+		s << "\xC1\xF8" << (char)1;  // sar eax, 1
 		break;
 	case SHIFT::ROR:
 		s << "\xD3\xC8"; // ror eax, cl
 		break;
 	}
 	store_carry(); // "\xD1\xD6"; // rcl esi, 1
+
 
 	std::ostringstream::pos_type cur = s.tellp();
 	size_t off = cur - jmpbyte - 1;
@@ -1290,7 +1329,11 @@ void compiler::compile_instruction()
 			s << "\x1D" << (unsigned long)(ctx.imm);       // sbb eax, imm
 			s << "\x89\x45" << (char)OFFSET(regs[ctx.rd]); // mov [ebp+rd], eax
 			if (ctx.flags & disassembler::S_BIT)
+			{
+				s << "\xF5";   // cmc
 				store_flags(); // todo: set carry = shifter carry
+			}
+
 			break;
 		}
 
@@ -1312,7 +1355,10 @@ void compiler::compile_instruction()
 				s << "\x89\x55" << (char)OFFSET(regs[ctx.rd]); // mov [ebp+rd], edx
 			}
 			if (ctx.flags & disassembler::S_BIT)
+			{
+				s << "\xF5";   // cmc
 				store_flags(); // todo: set carry = shifter carry
+			}
 			break;
 		}
 
@@ -1376,7 +1422,10 @@ void compiler::compile_instruction()
 		s << "\x2B\xC1";                               // sub eax, ecx
 		s << "\x89\x45" << (char)OFFSET(regs[ctx.rd]); // mov [ebp+rd], eax
 		if (ctx.flags & disassembler::S_BIT)
+		{
+			s << "\xF5";   // cmc
 			store_flags();
+		}
 		break;
 		/*
 	case INST::SBC_R: // Rd = Rn - shifter - !carry
@@ -1397,15 +1446,74 @@ void compiler::compile_instruction()
 		break_if_pc(ctx.rm);
 		break_if_pc(ctx.rd);
 		
-		s << DEBUG_BREAK;
+		//s << DEBUG_BREAK;
+		/*
 		s << "\x8B\x45" << (char)OFFSET(regs[ctx.rm]); // mov eax, [ebp+Rm]
 		s << "\x33\xC9"; // xor ecx, ecx
 		s << "\xD1\xE8"; // shr eax, 1
-		s << "\x74\x01"; // jz $+1
+		s << "\x74\x03"; // jz $+3
 		s << "\x41";     // inc ecx
+		s << "\xEB\xF9"; // jmp $-7
+
 		s << "\xB8"; write(s, (unsigned long)0x20); // mov eax, 20
 		s << "\x2B\xC1"; // sub eax, ecx
 		s << "\x89\x45" << (char)OFFSET(regs[ctx.rd]); // mov [ebp+rd], eax
+		//#s << "\x89\x4D" << (char)OFFSET(regs[ctx.rd]); // mov [ebp+rd], ecx
+		*/
+
+		//s << "\x0F\xBD\x45" << (char)OFFSET(regs[ctx.rm]); // bsr eax, [ebp+Rm]
+		
+		/*
+		__asm not eax
+		__asm bsf ecx, eax
+		__asm bsr ecx, eax
+		*/
+
+
+		/*
+		s << "\x8B\x45" << (char)OFFSET(regs[ctx.rm]); // mov eax, [ebp+Rm]
+		s << "\xF7\xD0";                               // not eax
+		//s << "\x0F\xBC\xC8";                           // bsf ecx, eax
+		s << "\x0F\xBD\xC8";                           // bsr ecx, eax
+		s << "\x89\x4D" << (char)OFFSET(regs[ctx.rd]); // mov [ebp+rd], ecx
+		*/
+
+
+		//s << "\x0F\xBC\x45" << (char)OFFSET(regs[ctx.rm]); // bsf eax, [ebp+Rm]
+		//s << "\x89\x45" << (char)OFFSET(regs[ctx.rd]);     // mov [ebp+rd], eax
+
+
+		// 00001010
+		// 11110101
+
+		
+		//__asm rcl eax, 1
+			// 01838247 D1 D0            rcl         eax,1 
+		//s << '\xB9'; write(s, (unsigned long)0x20);    // mov ecx, 0x20
+		
+		/*
+		s << "\x33\xC9";             // xor ecx, ecx
+		s << "\x8B\x45" << (char)OFFSET(regs[ctx.rm]); // mov eax, [ebp+Rm]
+		s << "\xC1\xE8" << (char)1;  // shr eax, 1
+		s << "\x76\x03";             // jbe $+3 (if zero or carry was set exit)
+		s << "\x41";                 // inc ecx
+		s << "\xEB\xF9";             // jmp $-7
+		s << "\x72\x03";             // jc $+1
+		s << "\x41";                 // inc ecx (add 1 more when carry was not set)		
+		s << "\x89\x4D" << (char)OFFSET(regs[ctx.rd]); // mov [ebp+rd], ecx
+		*/
+
+		
+		s << "\xB9"; write(s, (unsigned long)0xFFFFFFFF); // mov ecx, 0xFFFFFFFF
+		s << "\xC7\x45" << (char)OFFSET(regs[ctx.rd]); // mov [ebp+rd], 
+		write(s, (unsigned long)32);                   //   32
+		s << "\x8B\xC1";                               // mov eax, ecx
+		s << "\x23\x45" << (char)OFFSET(regs[ctx.rm]); // and eax, [ebp+rm]
+		s << "\x74\x07";                               // jz $+7
+		//s << "\xD1\xE9";                               // shr ecx, 1
+		s << "\xD1\xE1";                               // shr ecx, 1
+		s << "\xFF\x4D" << (char)OFFSET(regs[ctx.rd]); // dec [ebp+rd]
+		s << "\xEB\xF2";                               // jmp $-14
 		break;
 
 	case INST::MLA_R:
@@ -1710,6 +1818,9 @@ void compiler::compile_instruction()
 	case INST::STM:
 	case INST::STM_W:
 		{
+			if (ctx.flags & disassembler::S_BIT)
+				s << DEBUG_BREAK;
+
 			unsigned long num, highest, lowest;
 			bool region;
 			count( ctx.imm, num, lowest, highest, region );
@@ -1755,12 +1866,9 @@ void compiler::compile_instruction()
 							s << "\xFF\x75" << (char)OFFSET(regs[i]); // push dword ptr[ebp+Ri]
 						}
 					}
-					
-
 					s << '\x54';              // push esp
 				}
 				s << '\x6A' << (char)num; // push num
-				
 				// determine start address
 				push_multiple(num);
 				CALLP(store32_array) 
@@ -1799,14 +1907,37 @@ void compiler::compile_instruction()
 				}
 			}
 
+			if (ctx.flags & disassembler::S_BIT)
+			{
+				/* use the "simple" version for simple register bank switchs */
+
+				s << "\x83\xEC" << (char)(num << 2); // sub esp, num*4
+				s << '\x54';                         // push esp
+				s << '\x6A' << (char)num;            // push num
+				push_multiple(num);
+				CALLP(load32_array) 
+				s << "\x83\xC4\x0C";                 // add esp, 3*4
+				ldm_switchuser();
+				unsigned long mask = ctx.imm;
+				for (int i = 0; i < 16; i++)
+				{
+					if (mask & 1)
+					{
+						s << "\x8F\x40" << (char)OFFSET(regs[i]); // pop dword ptr[eax+Ri]
+					}
+					mask >>= 1;
+				}
+				ldm_switchback();
+
+			} else
 			switch (num)
 			{
 			case 0: // spec says this is undefined
 				s << DEBUG_BREAK;
 				break;
 			case 1: // simple 32bit store
-				load_ecx_single();      // load ecx, start_address
-				CALLP(load32) // dont use array load but simple load here!
+				load_ecx_single(); // load ecx, start_address
+				CALLP(load32)      // dont use array load but simple load here!
 				s << "\x89\x45" << (char)OFFSET(regs[highest]); // mov [ebp+R_highest], eax
 				break;
 			default:
@@ -1822,7 +1953,7 @@ void compiler::compile_instruction()
 					}
 					s << '\x6A' << (char)num;   // push num
 					push_multiple(num);
-					CALLP(load32_array) 
+					CALLP(load32_array) // (addr, num, data)
 					s << "\x83\xC4\x0C";        // add esp, 3*4
 				} else
 				{
@@ -1834,7 +1965,6 @@ void compiler::compile_instruction()
 					CALLP(load32_array) 
 					s << "\x83\xC4\x0C";                 // add esp, 3*4
 
-										
 					unsigned long mask = ctx.imm;
 					for (int i = 0; i < 16; i++)
 					{
@@ -1847,6 +1977,8 @@ void compiler::compile_instruction()
 				}
 				break;
 			}
+			//ldm_switchback();
+
 			// w-bit is set, update destination register
 			if (ctx.instruction == INST::LDM_W)
 			{

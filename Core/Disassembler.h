@@ -155,7 +155,8 @@ struct INST
 		/* missing instructions*/
 
 		
-		BLX_I
+		BLX_I,
+		LDRD
 		
 
 	} CODE;
@@ -574,6 +575,14 @@ private:
 		decode_misc();
 	}
 
+	void inst_ldrd()
+	{
+		// cond_000_xxxx_0_xxxxxxxxxxxx_1101_xxxx
+		// uses addressing mode #3
+		ctx.instruction = INST::LDRD;
+		//inst_unknown();
+	}
+
 	void decode_00000_mula()
 	{
 		if (ctx.op & (1 << 22)) // bit 22 MBZ
@@ -656,8 +665,18 @@ private:
 		// cond_000_xxxxxxxxxxxxxxxxx_1_xx_1_xxxx
 		// figure 3.2
 		ctx.extend_mode = (EXTEND_MODE::CODE)((ctx.op >> 5) & 0x3);
-		if (ctx.extend_mode == EXTEND_MODE::INVALID)
+		switch (ctx.extend_mode)
+		{
+		case EXTEND_MODE::INVALID:
 			return decode_000_mulswap();
+		case EXTEND_MODE::SB:
+			// if a store instruction follows this is a dsp or invalid
+			if (!((ctx.op >> 20) & 1))
+				return inst_ldrd();
+			break;
+		}
+
+
 
 		// Rm already decoded for register versions
 		// decode imm, for imm versions

@@ -34,7 +34,7 @@ struct breakpoint_defs
 		}
 	};
 	enum { MAX_SUBINSTRUCTIONS = 40 }; // enlarge if more is needed
-	enum { MAX_SUBINSTRUCTIONS_DISTORM = 20 }; // enlarge if more is needed
+	enum { MAX_SUBINSTRUCTIONS_DISTORM = 40 }; // enlarge if more is needed
 
 	class break_data
 	{
