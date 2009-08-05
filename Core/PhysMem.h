@@ -53,7 +53,7 @@ struct memory
 	static memory_region< PAGING::B<512> > registers9_3; // 0x04100000
 
 	// arm7 ioregs
-	typedef memory_region< PAGING::KB<8> > REGISTERS7_1; // arm7 io regs
+	//typedef memory_region< PAGING::KB<8> > REGISTERS7_1; // arm7 io regs
 	static REGISTERS7_1                    registers7_1; // 0x04000000 - 0x04002000
 
 	enum { NUM_REGIONS = 26 };

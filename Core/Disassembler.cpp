@@ -149,7 +149,14 @@ const char* INST::strings[] = {
 	"SWPB%c %Rd,%Rm,[%Rn]",
 
 	"BLX%c #0x%A".
-	"LDRD"
+	"LDR%cD_R %Rd [%-%Rn]",
+	"LDR%cD_RW %Rd [%-%Rn]",
+	"LDR%cD_RI %Rd [%-%Rn]",
+	"LDR%cD_RIW %Rd [%-%Rn]",
+	"LDR%cD_RP %Rd [%-%Rn]",
+	"LDR%cD_RPW %Rd [%-%Rn]",
+	"LDR%cD_RIP %Rd [%-%Rn]",
+	"LDR%cD_RIPW %Rd [%-%Rn]",
 
 };
 
@@ -327,8 +334,14 @@ const char* INST::strings[] = {
 	"swpb%c %Rd,%Rm,[%Rn]",
 
 	"blx%c #0x%A",
-	"ldrd"
-
+	"? ldr%cd_R %Rd,[%-%Rn]",
+	"? ldr%cd_RW %Rd,[%-%Rn]", // ! form
+	"ldr%cd %Rd,[%Rn],%I",
+	"? ldr%cd_RIW %Rd,[%-%Rn]", // ! form
+	"? ldr%cd_RP %Rd,[%-%Rn]",
+	"? ldr%cd_RPW %Rd,[%-%Rn]", // ! form
+	"? ldr%cd_RIP %Rd,[%-%Rn]",
+	"? ldr%cd_RIPW %Rd,[%-%Rn]", // !form
 };
 
 const char* SR_MASK::strings[16] = { 

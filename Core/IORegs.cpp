@@ -26,6 +26,7 @@ REGISTERS9_1::REGISTERS9_1( const char *name, unsigned long color, unsigned long
 }
 
 extern void start_dma3();
+
 void REGISTERS9_1::store32(unsigned long addr, unsigned long value)
 {
 	memory_block *b = memory_map<_ARM9>::addr2page(addr);
@@ -511,3 +512,205 @@ void REGISTERS9_1::load32_array(unsigned long addr, int /*num*/, unsigned long *
 	DebugBreak_();
 }
 
+////////////////////////////////////////////////////////////////////////////////
+
+REGISTERS7_1::REGISTERS7_1( const char *name, unsigned long color, unsigned long priority )
+	: memory_region(name, color, priority)
+{
+}
+
+
+
+
+void REGISTERS7_1::store32(unsigned long addr, unsigned long value)
+{
+	memory_block *b = memory_map<_ARM7>::addr2page(addr);
+	unsigned long subaddr = addr & (PAGING::ADDRESS_MASK & (~3));
+	unsigned long &current = *(unsigned long*)(&b->mem[subaddr]);
+	const char *name = 0;
+	bool nolog = false;
+	bool remap_vram = false;
+
+	switch (addr & 0x1FFF)
+	{
+	default:
+		/*
+		logging<_DEFAULT>::logf("Store 32 not supported at %08X [unknown]", addr);
+		DebugBreak_();
+		*/
+		name = "<Unknown>";
+	}
+
+#ifndef SILENT
+	if (!nolog)
+	{
+		logging<_DEFAULT>::logf("IO change at ARM7:%08X from %08X to %08X [%s]", 
+			addr, current, value, name);
+	}
+#endif
+	if (current != value)
+	{
+		current = value;
+		if (remap_vram)
+			vram::remap();
+		b->dirty();
+	}
+}
+
+void REGISTERS7_1::store16(unsigned long addr, unsigned long value)
+{
+	memory_block *b = memory_map<_ARM7>::addr2page(addr);
+	unsigned long subaddr = addr & (PAGING::ADDRESS_MASK & (~1));
+	unsigned short &current = *(unsigned short*)(&b->mem[subaddr]);
+	const char *name = 0;
+	bool nolog = false;
+	bool remap_vram = false;
+
+	switch (addr & 0x1FFF)
+	{
+	default:
+		//logging<_DEFAULT>::logf("Store 16 not supported at %08X", addr);
+		//DebugBreak_();
+		name = "<Unknown>";
+	}
+#ifndef SILENT
+	if (!nolog)
+	{
+		logging<_DEFAULT>::logf("IO change at ARM7:%08X from %04X to %04X [%s]", 
+			addr, current, value, name);
+	}
+#endif
+	if (current != (unsigned short)value)
+	{
+		current = (unsigned short)value;
+		if (remap_vram)
+			vram::remap();
+		b->dirty();
+	}
+}
+
+void REGISTERS7_1::store8(unsigned long addr, unsigned long value)
+{
+	memory_block *b = memory_map<_ARM7>::addr2page(addr);
+	unsigned long subaddr = addr & (PAGING::ADDRESS_MASK);
+	unsigned char &current = *(unsigned char*)(&b->mem[subaddr]);
+	//const char *name = 0;
+	bool nolog = false;
+
+	switch (addr & 0x1FFF)
+	{
+	default:
+		logging<_DEFAULT>::logf("Store 8 not supported at %08X", addr);
+		DebugBreak_();
+	}
+#ifndef SILENT
+	if (!nolog)
+	{
+		logging<_DEFAULT>::logf("IO change at ARM7:%08X from %02X to %02X [%s]", 
+			addr, current, value, name);
+	}
+#endif
+	if (current != (unsigned char)value)
+	{
+		current = (unsigned char)value;
+		b->dirty();
+	}
+
+	
+}
+
+void REGISTERS7_1::store32_array(unsigned long addr, int /*num*/, unsigned long * /*data*/)
+{
+	logging<_DEFAULT>::logf("Store Multiple not supported at %08X", addr);
+	DebugBreak_();
+}
+
+unsigned long REGISTERS7_1::load32(unsigned long addr)
+{
+	memory_block *b = memory_map<_ARM7>::addr2page(addr);
+	unsigned long subaddr = addr & (PAGING::ADDRESS_MASK & (~3));
+	unsigned long &current = *(unsigned long*)(&b->mem[subaddr]);
+	const char *name = 0;
+	bool nolog = true;
+
+	switch (addr & 0x1FFF)
+	{
+	default:
+		//logging<_DEFAULT>::logf("Load 32 not supported at %08X", addr);
+		//DebugBreak_();
+		//return current;
+		name = "<Unknown>";
+	}
+#ifndef SILENT
+	if (!nolog)
+	{
+		logging<_DEFAULT>::logf("IO read of ARM7:%08X = %08X [%s]", 
+			addr, current, name);
+	}
+#endif
+	return current;
+}
+
+unsigned long REGISTERS7_1::load16u(unsigned long addr)
+{
+	memory_block *b = memory_map<_ARM7>::addr2page(addr);
+	unsigned long subaddr = addr & (PAGING::ADDRESS_MASK & (~3));
+	unsigned short &current = *(unsigned short*)(&b->mem[subaddr]);
+	const char *name = 0;
+	bool nolog = true;
+
+	switch (addr & 0x1FFF)
+	{
+	default:
+		//logging<_DEFAULT>::logf("Load 16 not supported at %08X", addr);
+		//DebugBreak_();
+		name = "<Unknown>";
+	}
+
+#ifndef SILENT
+	if (!nolog)
+	{
+		logging<_DEFAULT>::logf("IO read of ARM7:%08X = %04X [%s]", 
+			addr, current, name);
+	}
+#endif
+	return current;
+}
+
+unsigned long REGISTERS7_1::load16s(unsigned long addr)
+{
+	return (signed short)REGISTERS7_1::load16u(addr);
+}
+
+unsigned long REGISTERS7_1::load8u(unsigned long addr)
+{
+	memory_block *b = memory_map<_ARM7>::addr2page(addr);
+	unsigned long subaddr = addr & (PAGING::ADDRESS_MASK & (~3));
+	unsigned char &current = *(unsigned char*)(&b->mem[subaddr]);
+	const char *name = 0;
+	bool nolog = true;
+
+	switch (addr & 0x1FFF)
+	{
+	default:
+		//logging<_DEFAULT>::logf("Load 8 not supported at %08X", addr);
+		//DebugBreak_();
+		name = "<Unknown>";
+	}
+
+#ifndef SILENT
+	if (!nolog)
+	{
+		logging<_DEFAULT>::logf("IO read of ARM7:%08X = %042 [%s]", 
+			addr, current, name);
+	}
+#endif
+
+	return current;
+}
+
+void REGISTERS7_1::load32_array(unsigned long addr, int /*num*/, unsigned long * /*data*/)
+{
+	logging<_DEFAULT>::logf("Load Multiple not supported at %08X", addr);
+	DebugBreak_();
+}

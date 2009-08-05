@@ -153,12 +153,16 @@ struct INST
 		SWPB,
 
 		/* missing instructions*/
-
-		
 		BLX_I,
-		LDRD
-		
 
+		LDRD_R,
+		LDRD_RW,
+		LDRD_RI,
+		LDRD_RIW,
+		LDRD_RP,
+		LDRD_RPW,
+		LDRD_RIP,
+		LDRD_RIPW
 	} CODE;
 	static const char* strings[];
 };
@@ -579,7 +583,21 @@ private:
 	{
 		// cond_000_xxxx_0_xxxxxxxxxxxx_1101_xxxx
 		// uses addressing mode #3
-		ctx.instruction = INST::LDRD;
+
+		// decode PBWL
+		switch ((ctx.op >> 21) & 0xB)
+		{
+		case 0x0: ctx.instruction = INST::LDRD_R; return;
+		case 0x1: ctx.instruction = INST::LDRD_RW; return;
+		case 0x2: ctx.instruction = INST::LDRD_RI; return;
+		case 0x3: ctx.instruction = INST::LDRD_RIW; return;
+		case 0x8: ctx.instruction = INST::LDRD_RP; return;
+		case 0x9: ctx.instruction = INST::LDRD_RPW; return;
+		case 0xA: ctx.instruction = INST::LDRD_RIP; return;
+		case 0xB: ctx.instruction = INST::LDRD_RIPW; return;
+		}
+
+		//ctx.instruction = INST::LDRD;
 		//inst_unknown();
 	}
 
@@ -662,6 +680,16 @@ private:
 
 	void decode_000_mul_extraloadstore()
 	{
+		// Rm already decoded for register versions
+		// decode imm, for imm versions
+		int imm = ((ctx.op & 0xF00) >> 4) | (ctx.rm);
+		if (ctx.op & (1 << 23))
+		{
+			ctx.imm = (unsigned long)imm;
+			ctx.flags |= U_BIT;
+		}
+		else ctx.imm = (unsigned long)(-imm);
+
 		// cond_000_xxxxxxxxxxxxxxxxx_1_xx_1_xxxx
 		// figure 3.2
 		ctx.extend_mode = (EXTEND_MODE::CODE)((ctx.op >> 5) & 0x3);
@@ -675,18 +703,6 @@ private:
 				return inst_ldrd();
 			break;
 		}
-
-
-
-		// Rm already decoded for register versions
-		// decode imm, for imm versions
-		int imm = ((ctx.op & 0xF00) >> 4) | (ctx.rm);
-		if (ctx.op & (1 << 23))
-		{
-			ctx.imm = (unsigned long)imm;
-			ctx.flags |= U_BIT;
-		}
-		else ctx.imm = (unsigned long)(-imm);
 
 
 		switch ((ctx.op >> 20) & 0x17)

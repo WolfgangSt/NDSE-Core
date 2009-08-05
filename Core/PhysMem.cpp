@@ -29,7 +29,7 @@ memory_region< PAGING::B<0x10400> >  memory::system_rom("System ROM", 0x00000000
 
 REGISTERS9_1                     memory::registers9_1("IO registers 9.0", 0x00000000, 1); // 0x04000000
 memory_region< PAGING::B<512> >  memory::registers9_3("IO registers 9.2", 0x00000000, 1); // 0x04100000
-memory::REGISTERS7_1             memory::registers7_1("IO registers 7.0", 0x00000000, 1); // 0x04000000
+REGISTERS7_1                     memory::registers7_1("IO registers 7.0", 0x00000000, 1); // 0x04000000
 
 // VRAM banks
 memory_region< PAGING::KB<128> > memory::vram_a("VRAM-A", 0x00000000, 2);

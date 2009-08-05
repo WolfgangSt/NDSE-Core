@@ -10,7 +10,7 @@
 // alternativly use memcpy's if instant DMA is wanted
 
 io_observer::reactor_page io_observer::reactor_data9[REGISTERS9_1::PAGES];
-io_observer::reactor_page io_observer::reactor_data7[memory::REGISTERS7_1::PAGES];
+io_observer::reactor_page io_observer::reactor_data7[REGISTERS7_1::PAGES];
 
 
 

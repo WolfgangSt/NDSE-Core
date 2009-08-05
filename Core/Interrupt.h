@@ -65,6 +65,7 @@ struct interrupt
 {
 	enum { MAX_INTERRUPTS = 25 };
 	static volatile long signaled; // max long bits interrupts
+	static bool inside;
 
 	static void poll_process();
 	
@@ -87,6 +88,57 @@ struct interrupt
 			break;
 		}
 	}
+
+	static void switch_and_invoke(unsigned long addr)
+	{
+		emulation_context &ctx_old = processor<T>::ctx();
+		unsigned long cpsr = ctx_old.cpsr;
+
+		// change to irq and backup cpsr
+		HLE<T>::loadcpsr(0x12, 0x1F); 
+		emulation_context &ctx_new = processor<T>::ctx();
+		ctx_new.spsr = cpsr;
+		
+
+		// invoke interrupt
+		// dispatching currently only works when it actually returns to the
+		// internal BIOS (lr)
+		// the only way to handle this more exact would be popping the 
+		// callstack down to the invoking HLE
+		// this might be archieved through esp backup at jit time
+		// and restoring here, making this func a non returning one
+		// bypassing the internal BIOS
+		unsigned long pc = ctx_new.regs[15]; // will be modified by internal BIOS
+		ctx_new.regs[15] = addr;
+		inside = true;
+		HLE<T>::invoke(addr, &ctx_new);
+		inside = false;
+		HLE<T>::loadcpsr(cpsr, 0x1F); // have to load old mode in order to not desync ebp (sorry for now!)
+		processor<T>::ctx().regs[15] = pc;   // restore old lr
+
+		
+		// switch back (client has to do this)
+		//emulation_context &ctx_exit = processor<T>::ctx();
+		//HLE<T>::loadcpsr(ctx_exit.spsr, 0xFFFFFFFF);
+	}
+
+	// uses a full temporary register bank
+	static void switch_and_invoke_old(unsigned long addr)
+	{	
+		emulation_context backup = processor<T>::ctx();
+
+		// switch to irq and use it to run the interrupt
+		HLE<T>::loadcpsr(0x12, 0x1F); 
+		emulation_context &ctx = processor<T>::ctx();
+		ctx.regs[15] = addr;
+		inside = true;
+		HLE<T>::invoke(addr, &ctx);
+		inside = false;
+
+		// restore backup
+		HLE<T>::loadcpsr(backup.cpsr, 0x1F);
+		processor<T>::ctx() = backup;
+	}
 };
 
 
@@ -94,7 +146,6 @@ struct interrupt
 template <> inline void interrupt<_ARM9>::poll_process()
 {
 	// early out of IE is false
-	static bool inside = false; // dont allow recursive interrupts for now
 	static volatile unsigned long &IME = *(volatile unsigned long*)
 		(memory::registers9_1.blocks[0x208 >> PAGING::SIZE_BITS].mem + 
 		 (0x208 & PAGING::ADDRESS_MASK));
@@ -113,9 +164,7 @@ template <> inline void interrupt<_ARM9>::poll_process()
 	
 	unsigned long intr = (unsigned long)_InterlockedExchange(&signaled, 0);
 
-	// todo: handle cpu mode switch!
-	emulation_context &ctx = processor<_ARM9>::ctx();
-	emulation_context backup = ctx;
+
 	for (unsigned long mask = 1; mask; mask <<= 1)
 	{
 		unsigned long itr = intr & mask & IE;
@@ -128,22 +177,16 @@ template <> inline void interrupt<_ARM9>::poll_process()
 			wstack *istack = (wstack*)(b->mem + (0x3F00 & PAGING::ADDRESS_MASK));
 
 			unsigned long addr = istack->irq_handler;
-			//logging<_ARM9>::logf("Interrupt to %08X", addr); 
-						
-			ctx.regs[15] = addr;
-			inside = true;
-			HLE<_ARM9>::invoke(addr, &ctx);
-			inside = false;
+			//logging<_ARM9>::logf("Interrupt to %08X", addr); 						
+			switch_and_invoke_old(addr);
 		}
 	}
-	ctx = backup;
 }
 
 // _ARM7 hardcoded here
 template <> inline void interrupt<_ARM7>::poll_process()
 {
 	// early out of IE is false
-	static bool inside = false; // dont allow recursive interrupts for now
 	static volatile unsigned long &IME = *(volatile unsigned long*)
 		(memory::registers7_1.blocks[0x208 >> PAGING::SIZE_BITS].mem + 
 		 (0x208 & PAGING::ADDRESS_MASK));
@@ -175,20 +218,12 @@ template <> inline void interrupt<_ARM7>::poll_process()
 		unsigned long addr = istack->irq_handler;
 		//logging<_ARM7>::logf("Interrupt to %08X", addr); 
 		// TODO: handle CPU mode switch!
-		emulation_context &ctx = processor<_ARM7>::ctx();
-		emulation_context backup = ctx;
-		
-		
-		ctx.regs[15] = addr;
-		inside = true;
-		HLE<_ARM7>::invoke(addr, &ctx);
-		inside = false;
-		
-		ctx = backup;
+		switch_and_invoke_old(addr);
 	}
 }
 
 
 template <typename T> volatile long interrupt<T>::signaled = 0;
+template <typename T> bool interrupt<T>::inside = false;
 
 #endif

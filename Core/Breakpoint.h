@@ -433,6 +433,8 @@ public:
 	{
 		static void f(char* start, char* end)
 		{
+			// TODO lower_bound seems to return the first greater
+			// bp and not equal one ...
 			breakmap::iterator it = breaks.lower_bound(start);
 			while ((it != breaks.end()) && (it->first < end))
 			{

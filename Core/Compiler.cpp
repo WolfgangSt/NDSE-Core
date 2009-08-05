@@ -104,18 +104,25 @@ void compiler::load_shifter_imm()
 		if (ctx.imm == 0)
 		{
 			// carry out = carry in
+			//s << "\x8B\x75" << (char)OFFSET(x86_flags); // mov esi, [ebp+x86_flags]
+			//s << "\xC1\xEE\x09";                        // shr esi, 9 
 			break;
 		}
-		s << "\xC1\xE0" << (char)ctx.imm; // shl eax, imm
+		if (ctx.imm >= 32) // optimize => doesnt need the initial load
+			//s << "\x33\xC0";                  // xor eax,eax
+		{
+			s << "\xC1\xE0" << (char)31; // shl eax, 31
+			s << "\xC1\xE0" << (char)1;  // shl eax, 1
+		} else
+			s << "\xC1\xE0" << (char)ctx.imm; // shl eax, imm
 		break;
 	case SHIFT::LSR:
-		if (ctx.imm == 32) // optimize => doesnt need the initial load
+		if (ctx.imm >= 32) // optimize => doesnt need the initial load
 			//s << "\x33\xC0";                  // xor eax,eax
 		{
 			s << "\xC1\xE8" << (char)31; // shr eax, 31
 			s << "\xC1\xE8" << (char)1;  // shr eax, 1
-		}
-		else
+		} else
 			s << "\xC1\xE8" << (char)ctx.imm; // shr eax, imm
 		break;
 	case SHIFT::ASR:
@@ -415,6 +422,7 @@ void compiler::shiftop_eax_ecx()
 		break;
 	}
 	store_carry(); // "\xD1\xD6"; // rcl esi, 1
+	//s << "\xEB\x06"; // jmp $+6
 
 
 	std::ostringstream::pos_type cur = s.tellp();
@@ -427,6 +435,10 @@ void compiler::shiftop_eax_ecx()
 	s.seekp( jmpbyte );
 	s << (char)off;
 	s.seekp( cur );
+
+
+	//s << "\x8B\x75" << (char)OFFSET(x86_flags); // mov esi, [ebp+x86_flags]
+	//s << "\xC1\xEE\x08";                        // shr esi, 9 
 
 	// 0 amount shift (do nothing)
 }
@@ -1617,7 +1629,7 @@ void compiler::compile_instruction()
 		{
 			break_if_pc(ctx.rd);
 			if (ctx.instruction == INST::MRS_SPSR)
-				s << "\x8B\x4D" << (char)OFFSET(spsr);
+				s << "\x8B\x45" << (char)OFFSET(spsr); // mov eax, SPSR
 			else
 			{
 				CALLP(storecpsr)
