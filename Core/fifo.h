@@ -1,50 +1,52 @@
 #ifndef _FIFO_H_
 #define _FIFO_H_
 
-template <typename T> struct fifo
+template <int n> struct fifo
 {
-	enum { SIZE = 16 };
-	static unsigned long readpos;
-	static unsigned long writepos;
-	static unsigned long queue[SIZE];
+	enum { SIZE = n };
+	unsigned long readpos;
+	unsigned long writepos;
+	unsigned long queue[SIZE];
 	
-	static unsigned long size()
+	unsigned long size() const
 	{
 		return (writepos - readpos) % SIZE;
 	}
 
-	static bool empty()
+	bool empty() const
 	{
 		return writepos == readpos;
 	}
 
-	static bool full()
+	bool full() const
 	{
 		return (!empty() && (size() == 0));
 	}
 
-	static void write(unsigned long data)
+	void write(unsigned long data)
 	{
 		queue[writepos % SIZE] = data;
 		writepos++;
 	}
 
-	static unsigned long top()
+	unsigned long top() const
 	{
 		return queue[readpos % SIZE];
 	}
 
-	static unsigned long read()
+	unsigned long read()
 	{
 		unsigned long res = queue[readpos % SIZE];
 		readpos++;
 		return res;
 	}
 
+	void reset()
+	{
+		readpos = 0;
+		writepos = 0;
+	}
 };
 
-template <typename T> unsigned long fifo<T>::queue[fifo<T>::SIZE];
-template <typename T> unsigned long fifo<T>::readpos;
-template <typename T> unsigned long fifo<T>::writepos;
 
 #endif

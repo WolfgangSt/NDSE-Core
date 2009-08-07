@@ -5,7 +5,6 @@
 
 memory_region< PAGING >          memory::null_region("(NULL)",                0x0000FF00, 0);
 memory_region< PAGING >          memory::hle_bios("HLE BIOS", _RGB(199,199,23), 1);        // 0xEFEF0000
-memory_region< PAGING >          memory::arm9_ipc("ARM9 IPC Transfer Region", 0x00000000, 1);
 
 memory_region< PAGING::KB<64> >  memory::accessory_ram("DS Accessory RAM",    0x00000000, 1); 
 memory_region< PAGING::KB<32> >  memory::accessory_rom("DS Accessorry ROM",   0x00000000, 1); // 32MB?
@@ -27,9 +26,10 @@ memory_region< PAGING::KB<256> > memory::exp_wram("Internal Expanded Work RAM", 
 memory_region< PAGING::KB<64> >  memory::arm7_wram("ARM7 Exclusive Internal Work RAM", 0x00000000, 1);
 memory_region< PAGING::B<0x10400> >  memory::system_rom("System ROM", 0x00000000, 1);
 
-REGISTERS9_1                     memory::registers9_1("IO registers 9.0", 0x00000000, 1); // 0x04000000
-memory_region< PAGING::B<512> >  memory::registers9_3("IO registers 9.2", 0x00000000, 1); // 0x04100000
-REGISTERS7_1                     memory::registers7_1("IO registers 7.0", 0x00000000, 1); // 0x04000000
+REGISTERS9_1                     memory::registers9_1("IO registers 9.0", 0x00000000, 1);   // 0x04000000
+TRANSFER9                        memory::transfer9("IPC transfer region 9", 0x00000000, 1); // 0x04100000
+REGISTERS7_1                     memory::registers7_1("IO registers 7.0", 0x00000000, 1);   // 0x04000000
+TRANSFER7                        memory::transfer7("IPC transfer region 9", 0x00000000, 1); // 0x04100000
 
 // VRAM banks
 memory_region< PAGING::KB<128> > memory::vram_a("VRAM-A", 0x00000000, 2);
@@ -70,7 +70,9 @@ const memory_region_base* memory::regions[memory::NUM_REGIONS] = {
 	&arm7_wram,
 	&system_rom,
 	&registers9_1,
-	&registers7_1
+	&transfer9,
+	&registers7_1,
+	&transfer7
 };
 
 // gotta figure the correct mappings somehow yet ...
@@ -85,6 +87,7 @@ template <> void memory::initializer<_ARM7>::initialize_mapping()
 	//memory_map<_ARM7>::map_region( &wcom_wait1,    PAGING::PAGES<0x04808000>::PAGE );
 	//memory_map<_ARM7>::map_region( &wcom_wait0,    PAGING::PAGES<0x04800000>::PAGE );
 	memory_map<_ARM7>::map_region( &registers7_1,  PAGING::PAGES<0x04000000>::PAGE );
+	memory_map<_ARM7>::map_region( &transfer7,     PAGING::PAGES<0x04100000>::PAGE );
 
 	memory_map<_ARM7>::map_region( &arm7_wram,     PAGING::REGION(0x03800000, 0x04000000) );
 	memory_map<_ARM7>::map_region( &arm7_shared,   PAGING::REGION(0x03000000, 0x03800000) );
@@ -112,7 +115,7 @@ template <> void memory::initializer<_ARM9>::initialize_mapping()
 	memory_map<_ARM9>::map_region( &oam_ab,        PAGING::PAGES<0x07000000>::PAGE );
 	memory_map<_ARM9>::map_region( &palettes,      PAGING::PAGES<0x05000000>::PAGE );
 	memory_map<_ARM9>::map_region( &registers9_1,  PAGING::PAGES<0x04000000>::PAGE );
-	memory_map<_ARM9>::map_region( &arm9_ipc,      PAGING::PAGES<0x04100000>::PAGE );
+	memory_map<_ARM9>::map_region( &transfer9,     PAGING::PAGES<0x04100000>::PAGE );
 
 	memory_map<_ARM9>::map_region( &ram,           PAGING::REGION(0x02000000, 0x03000000) );
 };

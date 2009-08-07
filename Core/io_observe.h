@@ -3,6 +3,7 @@
 
 #include "PhysMem.h"
 
+#if 0
 class io_observer
 {
 private:
@@ -22,6 +23,7 @@ private:
 public:
 	static void init();
 };
+#endif
 
 
 #endif

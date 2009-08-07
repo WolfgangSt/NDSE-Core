@@ -73,7 +73,7 @@ void STDCALL Init()
 	processor<_ARM9>::reset();
 	loader_elf::init();
 	vram::init();
-	io_observer::init();
+	//io_observer::init();
 
 	InitHLE();
 }

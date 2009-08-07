@@ -105,8 +105,6 @@ struct memory_block /* final, do not inherit! */
 
 	compile_info arm7;
 	compile_info arm9;
-	mem_callback writecb;
-	read_callback readcb;
 	memory_region_base *base;
 	unsigned long recompiles;
 
@@ -120,8 +118,6 @@ struct memory_block /* final, do not inherit! */
 	inline void dirty()
 	{
 		_InterlockedOr( (long*)&flags, PAGE_DIRTY );
-		if (writecb)
-			writecb(this);
 	}
 
 	memory_block();

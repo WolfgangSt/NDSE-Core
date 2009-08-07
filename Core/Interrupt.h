@@ -207,18 +207,24 @@ template <> inline void interrupt<_ARM7>::poll_process()
 	unsigned long intr = (unsigned long)_InterlockedExchange(&signaled, 0);
 	
 	intr = intr & IE;
-	if (intr)
-	{
-		IF = intr;
-		// wstack is 0x100 size and aligned by 0x100
-		// as page size is 0x200 minimum this will always be within one memory_block
-		memory_block *b = &memory::arm7_wram.blocks[0xFF00 >> PAGING::SIZE_BITS];
-		wstack *istack = (wstack*)(b->mem + (0xFF00 & PAGING::ADDRESS_MASK));
 
-		unsigned long addr = istack->irq_handler;
-		//logging<_ARM7>::logf("Interrupt to %08X", addr); 
-		// TODO: handle CPU mode switch!
-		switch_and_invoke_old(addr);
+
+	for (unsigned long mask = 1; mask; mask <<= 1)
+	{
+		unsigned long itr = intr & mask & IE;
+		if (itr)
+		{
+			IF = itr;
+			// wstack is 0x100 size and aligned by 0x100
+			// as page size is 0x200 minimum this will always be within one memory_block
+			memory_block *b = &memory::arm7_wram.blocks[0xFF00 >> PAGING::SIZE_BITS];
+			wstack *istack = (wstack*)(b->mem + (0xFF00 & PAGING::ADDRESS_MASK));
+
+			unsigned long addr = istack->irq_handler;
+			//logging<_ARM7>::logf("Interrupt to %08X", addr); 
+			// TODO: handle CPU mode switch!
+			switch_and_invoke_old(addr);
+		}
 	}
 }
 

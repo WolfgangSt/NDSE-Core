@@ -439,6 +439,14 @@
 					>
 				</File>
 			</Filter>
+			<Filter
+				Name="FIFO"
+				>
+				<File
+					RelativePath=".\fifo.h"
+					>
+				</File>
+			</Filter>
 		</Filter>
 		<Filter
 			Name="CPU"
@@ -552,14 +560,6 @@
 				</File>
 				<File
 					RelativePath=".\io_observe.h"
-					>
-				</File>
-			</Filter>
-			<Filter
-				Name="FIFO"
-				>
-				<File
-					RelativePath=".\fifo.h"
 					>
 				</File>
 			</Filter>

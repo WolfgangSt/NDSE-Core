@@ -20,8 +20,6 @@ memory_block::memory_block()
 	arm9.thumb = 0;
 	arm7.arm = 0;
 	arm7.thumb = 0;
-	writecb = 0;
-	readcb = 0;
 	recompiles = 0;
 }
 

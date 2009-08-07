@@ -61,8 +61,6 @@ unsigned long FASTCALL_IMPL(HLE<T>::load32(unsigned long addr))
 		invalid_read(addr);
 	if (b->flags & memory_block::PAGE_ACCESSHANDLER) // need special handling?
 		return b->base->load32(addr);
-	if (b->readcb)
-		b->readcb(b, addr);
 	return _rotr(*(unsigned long*)(&b->mem[addr & (PAGING::ADDRESS_MASK & (~3))]),
 		(addr & 3) << 3);
 }
@@ -75,8 +73,6 @@ unsigned long FASTCALL_IMPL(HLE<T>::load16u(unsigned long addr))
 		invalid_read(addr);
 	if (b->flags & memory_block::PAGE_ACCESSHANDLER) // need special handling?
 		return b->base->load16u(addr);
-	if (b->readcb)
-		b->readcb(b, addr);
 	return *(unsigned short*)(&b->mem[addr & (PAGING::ADDRESS_MASK & (~1))]);
 }
 
@@ -88,8 +84,6 @@ unsigned long FASTCALL_IMPL(HLE<T>::load16s(unsigned long addr))
 		invalid_read(addr);
 	if (b->flags & memory_block::PAGE_ACCESSHANDLER) // need special handling?
 		return b->base->load16s(addr);
-	if (b->readcb)
-		b->readcb(b, addr);
 	return *(signed short*)(&b->mem[addr & (PAGING::ADDRESS_MASK & (~1))]);
 }
 
@@ -101,8 +95,6 @@ unsigned long FASTCALL_IMPL(HLE<T>::load8u(unsigned long addr))
 		invalid_read(addr);
 	if (b->flags & memory_block::PAGE_ACCESSHANDLER) // need special handling?
 		return b->base->load8u(addr);
-	if (b->readcb)
-		b->readcb(b, addr);
 	return *(unsigned char*)(&b->mem[addr & (PAGING::ADDRESS_MASK)]);
 }
 
@@ -123,8 +115,6 @@ void HLE<T>::load32_array(unsigned long addr, int num, unsigned long *data)
 	unsigned long subaddr = addr & PAGING::ADDRESS_MASK;
 	while (data != end)
 	{
-		if (b->readcb)
-			b->readcb(b, (addr & (~PAGING::ADDRESS_MASK)) + subaddr);
 		*data = *(unsigned long*)(&b->mem[subaddr]); // load word
 		data++;       // advance data 
 		subaddr += 4; // advance in block

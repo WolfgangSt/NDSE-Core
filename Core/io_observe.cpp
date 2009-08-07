@@ -6,8 +6,7 @@
 #include "Interrupt.h"
 #include "vram.h"
 
-// move this to DMA threads (= parallelize)
-// alternativly use memcpy's if instant DMA is wanted
+#if 0
 
 io_observer::reactor_page io_observer::reactor_data9[REGISTERS9_1::PAGES];
 io_observer::reactor_page io_observer::reactor_data7[REGISTERS7_1::PAGES];
@@ -21,56 +20,14 @@ union endian_access
 	unsigned char  b[4];
 };
 
-unsigned long ipc_swizzle(unsigned long current, unsigned long other)
-{
-	// copy over bit 8-15 to 0-7
-	return (current & ~0xF) | ((other >> 8) & 0xF);
-}
-
 
 void io_observer::process9()
 {
-	for (unsigned int i = 0; i < memory::registers9_1.pages; i++)
-	{
-		memory_block &b = memory::registers9_1.blocks[i];
-		reactor_page &p = reactor_data9[i];
-		if (!b.react())
-			continue;
-
-		// pull the new data
-		unsigned long *bmem = (unsigned long*)&b.mem;
-		unsigned long addr_base = i * PAGING::SIZE;
-		for (unsigned int j = 0; j < PAGING::SIZE/sizeof(unsigned long); j++)
-		{
-			if (p[j] == bmem[j])
-				continue;
-
-
-			const char *name = "<unknown>";
-			unsigned long addr = addr_base + j * sizeof(unsigned long);
-			switch (addr)
-			{
-			case 0x180:
-				{
-					name = "IPC Synchronize Register";
-					// sync to arm7 IPC
-					unsigned long *cur = (unsigned long*)(memory::registers7_1.start->mem + 0x180);
-					unsigned long ipc = ipc_swizzle(*cur, bmem[j]);
-					*cur = ipc;
-					reactor_data7[0][0x180 >> 2] = ipc;
-					break;
-				}
-			}
-
-
-			// update
-			p[j] = bmem[j];
-		}
-	}
 }
 
 void io_observer::process7()
 {
+	/*
 	bool remap_v = false;
 	for (unsigned int i = 0; i < memory::registers7_1.pages; i++)
 	{
@@ -92,16 +49,6 @@ void io_observer::process7()
 			
 			switch (addr)
 			{
-			case 0x180:
-				{
-					name = "IPC Synchronize Register";
-					// sync to arm9 IPC
-					unsigned long *cur = (unsigned long*)(memory::registers9_1.start->mem + 0x180);
-					unsigned long ipc = ipc_swizzle(*cur, bmem[j]);
-					*cur = ipc;
-					reactor_data9[0][0x180 >> 2] = ipc;
-					break;
-				}
 			case 0x188:
 				{
 				name = "IPC FIFO Send";
@@ -123,11 +70,11 @@ void io_observer::process7()
 					name = "[SPICNT/SPIDATA] SPI Bus Control/Data";
 
 					endian_access &spi = *(endian_access*)(bmem+j);
-					/*
-					unsigned long device = (spi.h[0] >> 8) & 3;
-					unsigned long data   = spi.h[1];
-					unsigned long chan = (data >> 4) & 7;
-					*/
+					
+					//unsigned long device = (spi.h[0] >> 8) & 3;
+					//unsigned long data   = spi.h[1];
+					//unsigned long chan = (data >> 4) & 7;
+					
 
 					//logging<_DEFAULT>::logf("SPDATA = %04X on device %i, chan = %i", spi.h[1], device, chan);
 					spi.h[1] = (unsigned short)rand();
@@ -140,6 +87,7 @@ void io_observer::process7()
 	}
 	if (remap_v)
 		vram::remap();
+	*/
 }
 
 void io_observer::io_write9(memory_block*)
@@ -219,3 +167,6 @@ void io_observer::init()
 
 	//static io_observer i;
 }
+
+#endif
+

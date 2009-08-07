@@ -9,7 +9,6 @@ struct memory
 {
 	static memory_region< PAGING >          null_region;
 	static memory_region< PAGING >          hle_bios;    // 0xEFEF0000
-	static memory_region< PAGING >          arm9_ipc;    // 0x04100000 ipc transfer region
 
 	static memory_region< PAGING::KB<64> >  accessory_ram; 
 	static memory_region< PAGING::KB<32> >  accessory_rom; // 32MB?
@@ -48,15 +47,14 @@ struct memory
 	
 	
 	// arm9 ioregs
-	//typedef memory_region< PAGING::KB<8> > REGISTERS9_1; // arm9 io regs
 	static REGISTERS9_1                    registers9_1; // 0x04000000 - 0x04002000
-	static memory_region< PAGING::B<512> > registers9_3; // 0x04100000
+	static TRANSFER9                       transfer9;    // 0x04100000
 
 	// arm7 ioregs
-	//typedef memory_region< PAGING::KB<8> > REGISTERS7_1; // arm7 io regs
 	static REGISTERS7_1                    registers7_1; // 0x04000000 - 0x04002000
+	static TRANSFER7                       transfer7;    // 0x04100000
 
-	enum { NUM_REGIONS = 26 };
+	enum { NUM_REGIONS = 28 };
 	static const memory_region_base* regions[NUM_REGIONS];
 
 	static memory_block* get_nullblock()

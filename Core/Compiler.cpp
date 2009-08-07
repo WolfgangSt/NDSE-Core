@@ -726,20 +726,20 @@ void compiler::compile_instruction()
 			{
 			// conditions are _reversed_ in the jumps because a jump taken
 			// means the instruction will _not_ be executed.
-			case CONDITION::EQ: s << '\x75'; break; // jnz  (ZF = 0)
-			case CONDITION::NE: s << '\x74'; break; // jz   (ZF = 1)
-			case CONDITION::CS: s << '\x73'; break; // jnc  (CF = 0)
-			case CONDITION::CC: s << '\x72'; break; // jc   (CF = 1)
-			case CONDITION::MI: s << '\x79'; break; // jns  (SF = 0)
-			case CONDITION::PL: s << '\x78'; break; // js   (SF = 1)
-			case CONDITION::VS: s << '\x71'; break; // jno  (OF = 0)
-			case CONDITION::VC: s << '\x70'; break; // jo   (OF = 1)
-			case CONDITION::HI: s << '\x76'; break; // jbe  (CF = 1 or  ZF = 1)
-			case CONDITION::LS: s << '\x77'; break; // jnbe (CF = 0 and ZF = 0)
-			case CONDITION::GE: s << '\x7C'; break; // jl   (SF != OF)
-			case CONDITION::LT: s << '\x7D'; break; // jge  (SF == OF) (jnl)
-			case CONDITION::GT: s << '\x7E'; break; // jle  (ZF = 0 or  SF != OF)
-			case CONDITION::LE: s << '\x7F'; break; // jg   (ZF = 0 and SF == OF) (jnle)
+			case CONDITION::EQ: s << '\x75'; break; // jnz  (ZF = 0)              Z=1
+			case CONDITION::NE: s << '\x74'; break; // jz   (ZF = 1)              Z=0
+			case CONDITION::CS: s << '\x73'; break; // jnc  (CF = 0)              C=1
+			case CONDITION::CC: s << '\x72'; break; // jc   (CF = 1)              C=0
+			case CONDITION::MI: s << '\x79'; break; // jns  (SF = 0)              N=1
+			case CONDITION::PL: s << '\x78'; break; // js   (SF = 1)              N=0
+			case CONDITION::VS: s << '\x71'; break; // jno  (OF = 0)              V=1
+			case CONDITION::VC: s << '\x70'; break; // jo   (OF = 1)              V=0
+			case CONDITION::HI: s << "\xF5\x76"; break; // jbe  (CF = 1 or  ZF = 1)   C=1 Z=0 (needs cmc!)
+			case CONDITION::LS: s << "\xF5\x77"; break; // jnbe (CF = 0 and ZF = 0)   C=0 Z=1 (needs cmc!)
+			case CONDITION::GE: s << '\x7C'; break; // jl   (SF != OF)            N==V
+			case CONDITION::LT: s << '\x7D'; break; // jge  (SF == OF)            N!=V
+			case CONDITION::GT: s << '\x7E'; break; // jle  (ZF = 0 or  SF != OF) Z==0 or N==V (needs OF swap!)
+			case CONDITION::LE: s << '\x7F'; break; // jg   (ZF = 0 and SF == OF) Z==1 or N!=V
 			}
 			jmpbyte = s.tellp();
 			patch_jump = true;
@@ -1629,7 +1629,7 @@ void compiler::compile_instruction()
 		{
 			break_if_pc(ctx.rd);
 			if (ctx.instruction == INST::MRS_SPSR)
-				s << "\x8B\x45" << (char)OFFSET(spsr); // mov eax, SPSR
+				s << "\x8B\x45" << (char)OFFSET(spsr);
 			else
 			{
 				CALLP(storecpsr)
@@ -1802,7 +1802,12 @@ void compiler::compile_instruction()
 		break_if_pc(ctx.rn);
 		s << "\x81\x7D" << (char)OFFSET(regs[ctx.rn]); // cmp [ebp+Rn],
 		write(s, ctx.imm);                             // imm
-		//s << '\xF5';                                   // cmc
+		/*
+		s << "\xB8"; write( s, (unsigned long)(-(signed long)ctx.imm));             // mov eax, -imm
+		s << "\x03\x45" << (char)OFFSET(regs[ctx.rn]); // add eax, [ebp+Rn]
+		*/
+
+		s << "\xF5";                                   // cmc
 		store_flags();
 		break;
 	case INST::CMN_I:
@@ -1817,7 +1822,12 @@ void compiler::compile_instruction()
 		break_if_pc(ctx.rn);
 		load_shifter_imm();
 		s << "\x39\x45" << (char)OFFSET(regs[ctx.rn]); // cmp [ebp+Rn], eax
-		//s << '\xF5';                                   // cmc
+		
+		//s << "\x8B\x4D" << (char)OFFSET(regs[ctx.rn]); // mov ecx, [ebp+rn]
+		//s << "\xF7\xD8";                               // neg eax
+		//s << "\x03\xC1";                               // add eax, ecx	
+		
+		s << "\xF5";                                   // cmc
 		store_flags();
 		break;
 	case INST::CMN_R:

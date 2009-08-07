@@ -54,8 +54,9 @@ void map_vcnt(unsigned long cnt, unsigned long mst_mask, unsigned long ofs_mask,
 {
 	unsigned long mst, ofs;
 	static const unsigned long lut_fg[4] = {0x0, 0x4000, 0x10000, 0x14000};
-	if (cnt & (1 << 7)) \
+	if (cnt & (1 << 7))
 	{ 
+		//enable
 		mst = cnt & (mst_mask);
 		ofs = (cnt & (ofs_mask));
 		if (cnt & ~(ofs_mask | mst_mask | 0x80))
@@ -124,8 +125,8 @@ void map_vcnt(unsigned long cnt, unsigned long mst_mask, unsigned long ofs_mask,
 			switch (mst)
 			{
 			case 0: return map_bank<_ARM9>(idx, &memory::vram_g, 0x06894000);
-			case 2: return map_bank<_ARM9>(idx, &memory::vram_g, 0x06000000 | lut_fg[ofs]);
-			case 3: return map_bank<_ARM9>(idx, &memory::vram_g, 0x06400000 | lut_fg[ofs]);
+			case 1: return map_bank<_ARM9>(idx, &memory::vram_g, 0x06000000 | lut_fg[ofs]);
+			case 2: return map_bank<_ARM9>(idx, &memory::vram_g, 0x06400000 | lut_fg[ofs]);
 			//case 3: texture slot
 			//case 4: texture slot
 			//case 5: texture slot
@@ -152,6 +153,7 @@ void map_vcnt(unsigned long cnt, unsigned long mst_mask, unsigned long ofs_mask,
 		invalid_vcnt(idx, cnt);
 	} else 
 	{
+		// disable
 		static memory_region_base* const banks[9] = {
 			&memory::vram_a,
 			&memory::vram_b,
