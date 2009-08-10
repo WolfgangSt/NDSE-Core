@@ -32,15 +32,15 @@ REGISTERS7_1                     memory::registers7_1("IO registers 7.0", 0x0000
 TRANSFER7                        memory::transfer7("IPC transfer region 9", 0x00000000, 1); // 0x04100000
 
 // VRAM banks
-memory_region< PAGING::KB<128> > memory::vram_a("VRAM-A", 0x00000000, 2);
-memory_region< PAGING::KB<128> > memory::vram_b("VRAM-B", 0x00000000, 3);
-memory_region< PAGING::KB<128> > memory::vram_c("VRAM-C", 0x00000000, 4);
-memory_region< PAGING::KB<128> > memory::vram_d("VRAM-D", 0x00000000, 5);
-memory_region< PAGING::KB< 64> > memory::vram_e("VRAM-E", 0x00000000, 6);
-memory_region< PAGING::KB< 16> > memory::vram_f("VRAM-F", 0x00000000, 7);
-memory_region< PAGING::KB< 16> > memory::vram_g("VRAM-G", 0x00000000, 8);
-memory_region< PAGING::KB< 32> > memory::vram_h("VRAM-H", 0x00000000, 9);
-memory_region< PAGING::KB< 16> > memory::vram_i("VRAM-I", 0x00000000, 10);
+vram_region< PAGING::KB<128> > memory::vram_a("VRAM-A", 0x00000000, 2);
+vram_region< PAGING::KB<128> > memory::vram_b("VRAM-B", 0x00000000, 3);
+vram_region< PAGING::KB<128> > memory::vram_c("VRAM-C", 0x00000000, 4);
+vram_region< PAGING::KB<128> > memory::vram_d("VRAM-D", 0x00000000, 5);
+vram_region< PAGING::KB< 64> > memory::vram_e("VRAM-E", 0x00000000, 6);
+vram_region< PAGING::KB< 16> > memory::vram_f("VRAM-F", 0x00000000, 7);
+vram_region< PAGING::KB< 16> > memory::vram_g("VRAM-G", 0x00000000, 8);
+vram_region< PAGING::KB< 32> > memory::vram_h("VRAM-H", 0x00000000, 9);
+vram_region< PAGING::KB< 16> > memory::vram_i("VRAM-I", 0x00000000, 10);
 
 const memory_region_base* memory::regions[memory::NUM_REGIONS] = { 
 	&accessory_ram,

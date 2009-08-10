@@ -29,12 +29,20 @@ ioregs::ioregs()
 
 void ioregs::set_ipc(unsigned long remote_ipc)
 {
+	// protect against concurrent updates
+	ipc_mutex.lock();
 	ipc = (ipc & ~0xF) | ((remote_ipc >> 8) & 0xF);
+	ipc_mutex.unlock();
 }
 
-unsigned long ioregs::get_ipc() const
+unsigned long ioregs::get_ipc()
 {
-	return ipc;
+	// cant really protect this.. (would need unlock after other ARM
+	// doesnt need the value anymore)
+	ipc_mutex.lock();
+	unsigned long res = ipc;
+	ipc_mutex.unlock();
+	return res;
 }
 
 unsigned long ioregs::get_fifostate() const
@@ -244,9 +252,10 @@ void REGISTERS9_1::store32(unsigned long addr, unsigned long value)
 		memory::registers7_1.set_ipc(value);
 		break;
 	case 0x188:
-		logging<_ARM9>::logf("Pushing %08X to ARM9::FIFO", value);
+		//logging<_ARM9>::logf("Pushing %08X to ARM9::FIFO", value);
 		push_fifo(value);
 		memory::registers7_1.flag_fifo(get_fifostate());
+		// TODO: only fire when requested
 		interrupt<_ARM7>::fire(18); // IPC Recv FIFO Not Empty
 		break;
 	case 0x240:
@@ -421,10 +430,11 @@ void REGISTERS7_1::set_spidat(unsigned long value)
 	case 0: break; // Powerman
 	case 1: break; // Firmware
 	case 2: // Touchscreen
+		
 		switch (chn)
 		{
 		case 0:        // Temperature 0
-			//spidata = 0x100;
+			spidata = 0x100;
 			break; 
 		case 1:        // Touchscreen Y
 			if (differential)
@@ -436,11 +446,11 @@ void REGISTERS7_1::set_spidat(unsigned long value)
 		case 4: break; // Touchscreen Z2
 		case 5:        // Touchscreen X
 			if (differential)
-				spidata = 0x1;
+				spidata = 0xF0;
 			else spidata = 0x700; // 100-ED0 (0 = disable)
 			break;
 		case 6: break; // AUX input
-		case 7: break; // Temperature 1
+		case 7: spidata = 1; break; // Temperature 1
 		}
 		break; 
 	case 3: break; // Reserved
@@ -462,9 +472,10 @@ void REGISTERS7_1::store32(unsigned long addr, unsigned long value)
 		memory::registers9_1.set_ipc(value);
 		break;
 	case 0x188:
-		logging<_ARM7>::logf("Pushing %08X to ARM7::FIFO", value);
+		//logging<_ARM7>::logf("Pushing %08X to ARM7::FIFO", value);
 		push_fifo(value);
 		memory::registers9_1.flag_fifo(get_fifostate());
+		// TODO: only fire when requested
 		interrupt<_ARM9>::fire(18); // IPC Recv FIFO Not Empty
 		break;
 	case 0x01C0: // SPI requires the 16bit handler!
@@ -638,8 +649,11 @@ unsigned long TRANSFER9::load32(unsigned long addr)
 				logging<_ARM9>::logf("ARM7::FIFO underflow", addr);
 				DebugBreak_();
 			}
-			logging<_ARM9>::logf("Poping %08X from ARM7::FIFO", value);
-			memory::registers9_1.flag_fifo(memory::registers7_1.get_fifostate());
+			//logging<_ARM9>::logf("Poping %08X from ARM7::FIFO", value);
+			unsigned long state = memory::registers7_1.get_fifostate();
+			memory::registers9_1.flag_fifo(state);
+			if (state & 1)
+				interrupt<_ARM7>::fire(17); // IPC Send FIFO Empty
 			return value;
 		}
 	}
@@ -701,8 +715,11 @@ unsigned long TRANSFER7::load32(unsigned long addr)
 				logging<_ARM7>::logf("ARM9::FIFO underflow", addr);
 				DebugBreak_();
 			}
-			logging<_ARM7>::logf("Pushing %08X to ARM9::FIFO", value);
-			memory::registers7_1.flag_fifo(memory::registers9_1.get_fifostate());
+			//logging<_ARM7>::logf("Poping %08X from ARM9::FIFO", value);
+			unsigned long state = memory::registers9_1.get_fifostate();
+			memory::registers7_1.flag_fifo(state);
+			if (state & 1)
+				interrupt<_ARM9>::fire(17); // IPC Send FIFO Empty
 			return value;
 		}
 	}

@@ -4,16 +4,22 @@
 #include "memregion.h"
 #include "fifo.h"
 
+#pragma warning(push)
+#pragma warning(disable: 4244)
+#include <boost/detail/spinlock.hpp>
+#pragma warning(pop)
+
 struct ioregs
 {
 private:
+	boost::detail::spinlock ipc_mutex;
 	unsigned long ipc;         // needs a mutex!
 	unsigned long ipc_fifocnt; // needs a mutex!
 	fifo<16> ipc_fifo;         // needs a mutex!
 public:
 	ioregs();
 	void set_ipc(unsigned long remote_ipc);
-	unsigned long get_ipc() const;
+	unsigned long get_ipc() /*const*/;
 	unsigned long get_fifocnt() const;
 	unsigned long get_fifostate() const; // gets full/empty bits
 	bool pop_fifo(unsigned long &value); // trys to pop a value
@@ -85,7 +91,5 @@ struct TRANSFER7: public memory_region<PAGING>
 	unsigned long load8u(unsigned long addr);
 	void load32_array(unsigned long addr, int num, unsigned long *data);
 };
-
-
 
 #endif

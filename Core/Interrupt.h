@@ -71,18 +71,18 @@ struct interrupt
 	
 	static void fire(unsigned long interrupt)
 	{
-		static volatile unsigned short &DISPSTAT = *(volatile unsigned short*)
+		static volatile long &DISPSTAT = *(volatile long*)
 		(memory::registers9_1.blocks[0x4 >> PAGING::SIZE_BITS].mem + 
 		 (0x4 & PAGING::ADDRESS_MASK));
 
 
 		assert(interrupt < 32);
-		signaled |= 1 << interrupt;
+		_InterlockedOr( &signaled, 1 << interrupt);
 		switch (interrupt)
 		{
 		case 0: // vblank
 			// set VBLK bit
-			DISPSTAT |= 1;
+			_InterlockedOr( &DISPSTAT, 1 );
 			break;
 		case 1: // vcount
 			break;

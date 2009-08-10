@@ -42,14 +42,13 @@ void map_bank(unsigned long idx, memory_region_base *b, unsigned long addr)
 
 
 
+// [16:02] <mukunda> the banks with the higher letters have priority i believe
+
 void invalid_vcnt(unsigned long idx, unsigned long cnt)
 {
 	logging<_ARM9>::logf("Warning: invalid VRAMCNT specified for BANK-%c (0x%02X)", 'A' + idx, cnt);
 }
 
-
-
-// [16:02] <mukunda> the banks with the higher letters have priority i believe
 void map_vcnt(unsigned long cnt, unsigned long mst_mask, unsigned long ofs_mask, unsigned long idx)
 {
 	unsigned long mst, ofs;

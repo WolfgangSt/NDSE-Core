@@ -5,6 +5,11 @@
 #include "Mem.h"
 #include "osdep.h" // for rotr on *nix
 
+// pull U_BIT into instructions
+// this doubles the LDR/STR but is more efficient
+// pull EXTEND_MODE into instructions
+// extends the LDRX instructions by factor 3 for efficiency
+
 struct INST
 {
 	typedef enum {
@@ -162,7 +167,12 @@ struct INST
 		LDRD_RP,
 		LDRD_RPW,
 		LDRD_RIP,
-		LDRD_RIPW
+		LDRD_RIPW,
+
+		PLD_I,
+		PLD_R,
+
+		MAX_INSTRUCTIONS
 	} CODE;
 	static const char* strings[];
 };
@@ -189,7 +199,7 @@ struct CONDITION
 struct SHIFT
 {
 	typedef enum {
-		LSL, LSR, ASR, ROR, RXX
+		LSL, LSR, ASR, ROR, RRX
 	} CODE;
 	static const char* strings[5];
 };
@@ -320,7 +330,7 @@ private:
 		if((ctx.imm == 0) && (ctx.shift != SHIFT::LSL))
 		{
 			if (ctx.shift == SHIFT::ROR)
-				ctx.shift = SHIFT::RXX;
+				ctx.shift = SHIFT::RRX;
 			else ctx.imm = 32;
 		}
 	}
@@ -490,6 +500,19 @@ DecodeReg:
 private:
 	void decode_instruction_NV()
 	{
+		if ((ctx.op & 0x0D700000) == 0x5500000)
+		{
+			// PLD
+			decode_addressingmode2();
+			if (ctx.rd == 0xF)  // rd must be ones
+			{
+				if (ctx.op & (1 << 25))
+					ctx.instruction = INST::PLD_I;
+				else ctx.instruction = INST::PLD_R;
+				return;
+			}
+		}
+
 		inst_ud();
 	}
 
@@ -915,12 +938,8 @@ private:
 	}
 
 
-
-	void decode_010_loadstore_imm()
+	void decode_addressingmode2()
 	{
-		// page 235
-
-		// Load/store immediate offset
 		ctx.rn = decode_reg<16>();
 		ctx.rd = decode_reg<12>();
 		if (ctx.op & (1 << 23)) // u bit
@@ -930,6 +949,15 @@ private:
 		}
 		else 
 			ctx.imm = (unsigned)-(signed)(ctx.op & 0xFFF);
+	}
+
+
+	void decode_010_loadstore_imm()
+	{
+		// page 235
+
+		// Load/store immediate offset
+		decode_addressingmode2();
 
 		// decode PBWL
 		switch ((ctx.op >> 20) & 0x17)

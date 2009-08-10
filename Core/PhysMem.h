@@ -3,6 +3,7 @@
 
 #include "MemRegion.h"
 #include "IORegs.h"
+#include "vram.h"
 
 // physical memory
 struct memory 
@@ -19,15 +20,15 @@ struct memory
 	static memory_region< PAGING::KB<512> > bg_vram_a;
 	static memory_region< PAGING::B<2048> > palettes;
 
-	static memory_region< PAGING::KB<128> > vram_a;
-	static memory_region< PAGING::KB<128> > vram_b;
-	static memory_region< PAGING::KB<128> > vram_c;
-	static memory_region< PAGING::KB<128> > vram_d;
-	static memory_region< PAGING::KB< 64> > vram_e;
-	static memory_region< PAGING::KB< 16> > vram_f;
-	static memory_region< PAGING::KB< 16> > vram_g;
-	static memory_region< PAGING::KB< 32> > vram_h;
-	static memory_region< PAGING::KB< 16> > vram_i;
+	static vram_region< PAGING::KB<128> > vram_a;
+	static vram_region< PAGING::KB<128> > vram_b;
+	static vram_region< PAGING::KB<128> > vram_c;
+	static vram_region< PAGING::KB<128> > vram_d;
+	static vram_region< PAGING::KB< 64> > vram_e;
+	static vram_region< PAGING::KB< 16> > vram_f;
+	static vram_region< PAGING::KB< 16> > vram_g;
+	static vram_region< PAGING::KB< 32> > vram_h;
+	static vram_region< PAGING::KB< 16> > vram_i;
 
 	// io registers
 	static memory_region< PAGING::KB<32> >  arm7_shared;

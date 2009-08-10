@@ -1,6 +1,9 @@
 #ifndef _COMPILER_H_
 #define _COMPILER_H_
 
+// replaces the JIT with a nearly pure HL core
+#undef HLE_CORE
+
 // todo: pull all methods to template based versions rather than using 
 // init_cpu / init_mode to gain some more performance
 
@@ -11,6 +14,10 @@
 #include "Disassembler.h"
 #include "HLE.h"
 #include "CompiledBlock.h"
+
+#ifdef HLE_CORE
+#include "HLCore.h"
+#endif
 
 #define STRINGIFY(x) #x
 #define TOSTRING(x)  STRINGIFY(x)
@@ -87,6 +94,8 @@ private:
 	void store_carry();
 	void load_carry();
 
+	void shift_eax_imm();
+
 	void record_callstack();
 	void update_callstack();
 	void add_ecx_bpre();
@@ -96,6 +105,13 @@ private:
 	void epilogue(char *&mem, size_t &size);
 	std::ostringstream::pos_type tellp();
 
+	int pushs;
+	void push(unsigned long imm);
+
+#ifdef HLE_CORE
+	void* hlc_funcs[INST::MAX_INSTRUCTIONS];
+	void* hlc_checkflags;
+#endif
 
 	void* store32;
 	void* store16;
@@ -125,6 +141,11 @@ public:
 	
 	template <typename T> void init_cpu()
 	{
+#ifdef HLE_CORE
+		for (int i = 0; i < INST::MAX_INSTRUCTIONS; i++)
+			hlc_funcs[i] = HLCore<T>::funcs[i];
+		hlc_checkflags = HLCore<T>::check_flags;
+#endif
 		store32 = HLE<T>::store32;
 		store16 = HLE<T>::store16;
 		store8 = HLE<T>::store8;
@@ -183,7 +204,7 @@ public:
 					c.lookahead_s = 0;
 				}
 
-				if (cnext.shift == SHIFT::RXX)
+				if (cnext.shift == SHIFT::RRX)
 					c.lookahead_s = 0;
 			}
 			c.compile_instruction();

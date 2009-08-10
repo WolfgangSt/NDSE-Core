@@ -3,6 +3,8 @@
 
 #include <QMutex>
 #include <QMutexLocker>
+#include <boost/thread/mutex.hpp>
+
 #include <map>
 #include "MemMap.h"
 #include "Processor.h"

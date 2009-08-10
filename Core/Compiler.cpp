@@ -11,6 +11,12 @@
 
 #include "osdep.h"
 
+#ifdef HLE_CORE
+#include "HLCore.h"
+#endif
+
+
+
 // cycle counter requires SSE
 #define CLOCK_CYCLES
 
@@ -92,12 +98,8 @@ void compiler::load_carry()
 	s << "\xD1\xDE"; // rcr esi, 1
 }
 
-
-void compiler::load_shifter_imm()
+void compiler::shift_eax_imm()
 {
-	if (ctx.shift == SHIFT::RXX)
-		load_flags();
-	load_eax_reg_or_pc(ctx.rm);
 	switch (ctx.shift)
 	{
 	case SHIFT::LSL:
@@ -144,10 +146,19 @@ void compiler::load_shifter_imm()
 			s << "\xC1\xC8" << (char)ctx.imm; // ror eax, imm
 		}
 		break;
-	case SHIFT::RXX:
+	case SHIFT::RRX:
 		s << "\xD1\xD8"; // rcr eax,1 
 		break;
 	}
+}
+
+
+void compiler::load_shifter_imm()
+{
+	if (ctx.shift == SHIFT::RRX)
+		load_flags();
+	load_eax_reg_or_pc(ctx.rm);
+	shift_eax_imm();
 	store_carry();
 }
 
@@ -505,14 +516,8 @@ void compiler::generic_loadstore_shift()
 	} 
 	
 	s << "\x8B\x45" << (char)OFFSET(regs[ctx.rm]); // mov eax,[ebp+rm]
-	switch (ctx.shift)
-	{
-	case SHIFT::LSL:
-		s << "\xC1\xE0" << (char)ctx.imm;          // shl eax, imm
-		//break; // couldnt verify yet
-	default:
-		s << DEBUG_BREAK;
-	}		
+	shift_eax_imm();
+	store_carry();
 	s << "\x03\xC8";                               // add ecx, eax
 }
 
@@ -692,10 +697,102 @@ void compiler::store_rd_eax()
 	}
 }
 
+void compiler::push(unsigned long imm)
+{
+	//__asm push 1
+	//__asm push 0xbadc0de
+
+	//01841233 6A 01            push        1    
+	//01841235 68 DE C0 AD 0B   push        0BADC0DEh 
+	if ((signed long)imm == (signed char)imm)
+		s << '\x6A' << (signed char)imm;
+	else 
+	{
+		s << '\x68';
+		write(s, imm);
+	}
+	pushs++;
+}
+
 void compiler::compile_instruction()
 {
 	bool patch_jump = false;
 	std::ostringstream::pos_type jmpbyte;
+
+#ifdef HLE_CORE
+	if ((ctx.cond != CONDITION::AL) && (ctx.cond != CONDITION::NV))
+	{
+		CALLP(hlc_checkflags);
+		s << "\x0B\xC0"  // or eax, eax
+		  << "\x75"; // jne $+5
+		jmpbyte = s.tellp();
+		patch_jump = true;
+		s << '\x00';
+	}
+
+	// use disassembly string to determine args to push
+	pushs = 0;
+	const char *dasm = INST::strings[ctx.instruction];
+	const char *p = dasm;
+	while (*p)
+	{
+		char c = *p++;
+		if (c == '%')
+		{
+			char c = *p++;
+			switch (c)
+			{
+			case '^': continue; // flags
+			case '-': continue; // flags
+			case '?': continue;
+			case 'c': continue;
+			case 's': continue; // flags
+			case 'F': push( cpsr_masks[ctx.rn] ); continue;
+			case 'S': push(ctx.shift); continue;
+			case 'R': // Register
+				{
+DecodeReg:
+					char c = *p++;
+					switch (c)
+					{
+					case 'd': push(ctx.rd); break;
+					case 'n': push(ctx.rn); break;
+					case 'm': push(ctx.rm); break;
+					case 's': push(ctx.rs); break;
+					case 'L': push(ctx.imm); break;
+					}
+					continue;
+				}
+			case 'M': push(ctx.addressing_mode); continue;
+			case 'E': push(ctx.extend_mode); continue;
+			case 'I': push(ctx.imm); continue;
+			case 'A': push(ctx.imm); continue;
+			case 'C':
+				// coproc entity
+
+				char c = *p++;
+				switch (c)
+				{
+				case 'p': push(ctx.cp_num); break;
+				case '1': push(ctx.cp_op1); break;
+				case '2': push(ctx.cp_op2); break;
+				case 'R':
+					goto DecodeReg;
+				}
+				continue;
+			}
+			continue;
+		}
+	}
+
+	push(ctx.flags); // always need those for S_BIT at least
+	CALLP( hlc_funcs[ctx.instruction] );
+	// cleanup stack
+	s << "\x83\xC4"; // add esp,
+	s << (char)(pushs*4);
+	// HLE Core doesnt understand DEBUG magic yet
+#else
+	// JIT CORE STARTS HERE
 	//unsigned long bpre = preoff;
 	//preoff = 0;
 	int flags_actual = flags_updated;
@@ -751,6 +848,11 @@ void compiler::compile_instruction()
 ////////////////////////////////////////////////////////////////////////////////
 	switch (ctx.instruction)
 	{
+	case INST::PLD_I:
+	case INST::PLD_R:
+		s << '\x90';
+		break;
+
 	case INST::MOV_I:
 		break_if_pc(ctx.rd);
 		s << "\xC7\x45" << (char)OFFSET(regs[ctx.rd]); // mov [ebp+rd], imm32
@@ -812,6 +914,19 @@ void compiler::compile_instruction()
 			// todo optimize the flagcheck (doesnt need to do the cmp)
 			//store_carry();
 			s << "\x83\xC8" << '\x0'; // or eax, 0
+			load_carry();
+			store_flags();
+		}
+		break;
+
+	case INST::ORR_RR: 	// "OR%c%s %Rd,%Rm,%S %Rs",
+		break_if_pc(ctx.rd);
+		load_ecx_reg_or_pc(ctx.rs);          // ecx = reg[rn]
+		load_eax_ecx_or_reg(ctx.rm, ctx.rs); // eax = reg[rd]
+		shiftop_eax_ecx();
+		s << "\x09\x45" << (char)OFFSET(regs[ctx.rd]); // or [ebp+rd], eax
+		if (ctx.flags & disassembler::S_BIT)
+		{
 			load_carry();
 			store_flags();
 		}
@@ -2035,7 +2150,7 @@ void compiler::compile_instruction()
 	default_:
 		s << DEBUG_BREAK; // no idea how to handle this!
 	}
-
+#endif // JIT CORE
 	if (patch_jump)
 	{
 		std::ostringstream::pos_type cur = s.tellp();
@@ -2071,7 +2186,8 @@ void compiler::epilogue(char *&mem, size_t &size)
 
 	size = s.tellp();
 	mem = new char[size];
-	mprotect( mem, size, PROT_READ | PROT_WRITE | PROT_EXEC );
+	if (mprotect( mem, size, PROT_READ | PROT_WRITE | PROT_EXEC ) != 0)
+		logging<_DEFAULT>::log("Failed to adjust JIT memory to executable");
 
 #pragma warning(push)
 #pragma warning(disable: 4996)

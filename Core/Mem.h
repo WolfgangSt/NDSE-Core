@@ -94,7 +94,8 @@ struct memory_block /* final, do not inherit! */
 		PAGE_DIRTY_VRAM    = 0x80,
 		PAGE_DIRTY         = PAGE_DIRTY_J7 | PAGE_DIRTY_J9 | PAGE_DIRTY_REACTOR | PAGE_DIRTY_VRAM,
 
-		PAGE_ACCESSHANDLER = 0x100 // page needs special mem access handling
+		PAGE_ACCESSHANDLER = 0x100, // page needs special mem access handling
+		PAGE_WRITEPROT8    = 0x200  // fast write protection handler for VRAM
 	};
 
 	typedef void (*mem_callback)(memory_block *block);  

@@ -168,7 +168,8 @@ void FASTCALL_IMPL(HLE<T>::store8(unsigned long addr, unsigned long value))
 	if (b->flags & memory_block::PAGE_ACCESSHANDLER) // need special handling?
 		return b->base->store8(addr, value);
 
-	if (b->flags & (memory_block::PAGE_INVALID | memory_block::PAGE_WRITEPROT))
+	if (b->flags & (memory_block::PAGE_INVALID | memory_block::PAGE_WRITEPROT | 
+		memory_block::PAGE_WRITEPROT8))
 		return invalid_write(addr);
 	*(unsigned char*)(&b->mem[addr & (PAGING::ADDRESS_MASK)]) = (unsigned char)value;
 	b->dirty();
@@ -356,9 +357,9 @@ char* FASTCALL_IMPL(HLE<T>::compile_and_link_branch_a_real(unsigned long addr))
 // migh get overwritten by the compile call!
 // this is compiler dependant as i dont know any way to do this
 // highlevel yet ...
-template <typename T> char HLE<T>::compile_and_link_branch_a[7];
-template <typename T> char HLE<T>::invoke_arm[19];
-template <typename T> char HLE<T>::read_tsc[3];
+template <typename T> char HLE<T>::compile_and_link_branch_a[7+HLE<T>::SECURITY_PADDING];
+template <typename T> char HLE<T>::invoke_arm[19+HLE<T>::SECURITY_PADDING];
+template <typename T> char HLE<T>::read_tsc[3+HLE<T>::SECURITY_PADDING];
 
 // if possible remove the wrapping!
 template <typename T>
@@ -369,6 +370,13 @@ void HLE<T>::invoke(unsigned long addr, emulation_context *ctx)
 
 #define OFFSET(z) ((char*)&__context_helper.z - (char*)&__context_helper)
 static emulation_context __context_helper; // temporary for OFFSET calculation
+
+static void prepare_stub(char *addr, size_t sz)
+{
+	if (mprotect( addr, sz, PROT_READ | PROT_WRITE | PROT_EXEC ) != 0)
+		logging<_DEFAULT>::log("Failed to adjust JIT memory to executable");
+	cacheflush( addr, (int)sz, ICACHE );
+}
 
 template <typename T>
 void HLE<T>::init()
@@ -381,7 +389,9 @@ void HLE<T>::init()
 		s << '\xE8'; s.write((char*)&d, sizeof(d)); // call func
 		s << "\xFF\xE0";                            // jmp eax
 		std::string str = s.str();
+		memset( data, 0x90, str.size() + SECURITY_PADDING );
 		memcpy( data, str.data(), str.size() );
+		prepare_stub( data, str.size() );
 	}
 	{
 		std::ostringstream s;
@@ -405,7 +415,9 @@ void HLE<T>::init()
 		s << '\xC3';                                      // ret
 
 		std::string str = s.str();
+		memset( data, 0x90, str.size() + SECURITY_PADDING );
 		memcpy( data, str.data(), str.size() );		
+		prepare_stub( data, str.size() );
 	}
 
 	{
@@ -414,7 +426,9 @@ void HLE<T>::init()
 		s << "\x8B\xC3"; // mov eax, ebx
 		s << '\xC3';     // ret
 		std::string str = s.str();
-		memcpy( data, str.data(), str.size() );		
+		memset( data, 0x90, str.size() + SECURITY_PADDING );
+		memcpy( data, str.data(), str.size() );	
+		prepare_stub( data, str.size() );
 	}
 }
 
@@ -579,6 +593,23 @@ template <> void HLE<_ARM9>::sqrt()
 	DebugBreak_(); // not yet supported
 }
 
+template <typename T> void HLE<T>::div()
+{
+	emulation_context &ctx = processor<_ARM9>::ctx();
+	if (ctx.regs[1] == 0)
+	{
+		logging<T>::log("SWI 9h division by zero");
+		DebugBreak_();
+	}
+	signed long r0 = (signed)ctx.regs[0]/(signed)ctx.regs[1];
+	signed long r1 = ctx.regs[0] - r0;
+	ctx.regs[0] = (unsigned long)r0;
+	ctx.regs[1] = (unsigned long)r1;
+	if (r0 < 0)
+		ctx.regs[2] = (unsigned long)-r0;
+	else ctx.regs[2] = (unsigned long)r0;
+}
+
 template <> void HLE<_ARM9>::CpuSet()
 {
 	logging<_ARM9>::logf("SWI Bh [CpuSet] called (noimpl)");
@@ -674,6 +705,7 @@ void FASTCALL_IMPL(HLE<_ARM9>::swi(unsigned long idx))
 	case 0x4: return HLE<_ARM9>::IntrWait();
 	case 0x5: return HLE<_ARM9>::wait_vblank();
 	case 0x8: return HLE<_ARM9>::sqrt();
+	case 0x9: return HLE<_ARM9>::div();
 	case 0xB: return HLE<_ARM9>::CpuSet();
 	case 0x12: return HLE<_ARM9>::LZ77UnCompVram();
 	}
@@ -689,6 +721,7 @@ void FASTCALL_IMPL(HLE<_ARM7>::swi(unsigned long idx))
 	case 0x3: return HLE<_ARM7>::delay();
 	case 0x4: return HLE<_ARM7>::IntrWait();
 	case 0x5: return HLE<_ARM7>::wait_vblank();
+	case 0x9: return HLE<_ARM7>::div();
 	case 0xE: return HLE<_ARM7>::crc16();
 	}
 	logging<_ARM7>::logf("Unhandled SWI %08X called", idx);

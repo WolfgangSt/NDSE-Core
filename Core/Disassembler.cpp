@@ -158,6 +158,8 @@ const char* INST::strings[] = {
 	"LDR%cD_RIP %Rd [%-%Rn]",
 	"LDR%cD_RIPW %Rd [%-%Rn]",
 
+	"PLD",
+	"PLD"
 };
 
 const char* SR_MASK::strings[16] = { 
@@ -171,7 +173,7 @@ const char* CONDITION::strings[16] = {
 };
 
 const char* SHIFT::strings[5] = { 
-	"LSL", "LSR", "ASR", "ROR", "RXX"
+	"LSL", "LSR", "ASR", "ROR", "RRX"
 };
 
 const char* ADDRESSING_MODE::strings[4] = { 
@@ -342,6 +344,9 @@ const char* INST::strings[] = {
 	"? ldr%cd_RPW %Rd,[%-%Rn]", // ! form
 	"? ldr%cd_RIP %Rd,[%-%Rn]",
 	"? ldr%cd_RIPW %Rd,[%-%Rn]", // !form
+
+	"pld [%Rn,#%-%I]",
+	"? pld [%Rn]",
 };
 
 const char* SR_MASK::strings[16] = { 
@@ -355,7 +360,7 @@ const char* CONDITION::strings[16] = {
 };
 
 const char* SHIFT::strings[5] = { 
-	"lsl", "lsr", "asr", "ror", "rxx"
+	"lsl", "lsr", "asr", "ror", "rrx"
 };
 
 const char* ADDRESSING_MODE::strings[4] = { 

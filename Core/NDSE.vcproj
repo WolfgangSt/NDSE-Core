@@ -371,6 +371,18 @@
 					>
 				</File>
 			</Filter>
+			<Filter
+				Name="HLCore"
+				>
+				<File
+					RelativePath=".\HLCore.cpp"
+					>
+				</File>
+				<File
+					RelativePath=".\HLCore.h"
+					>
+				</File>
+			</Filter>
 		</Filter>
 		<Filter
 			Name="Memory"
@@ -547,22 +559,6 @@
 				RelativePath=".\SourceInfo.h"
 				>
 			</File>
-		</Filter>
-		<Filter
-			Name="Modules"
-			>
-			<Filter
-				Name="IO Observer"
-				>
-				<File
-					RelativePath=".\io_observe.cpp"
-					>
-				</File>
-				<File
-					RelativePath=".\io_observe.h"
-					>
-				</File>
-			</Filter>
 		</Filter>
 		<File
 			RelativePath=".\Exports.def"

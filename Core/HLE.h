@@ -68,12 +68,14 @@ template <typename T>
 struct HLE
 {
 private:
+	enum { SECURITY_PADDING = 64 };
 	static char* FASTCALL(compile_and_link_branch_a_real(unsigned long addr));
 	
 	static void delay();          // SWI 3h
 	static void IntrWait();       // SWI 4h
 	static void wait_vblank();    // SWI 5h
 	static void sqrt();           // SWI 8h
+	static void div();            // SWI 9h
 	static void CpuSet();         // SWI Bh
 	static void crc16();          // SWI Eh
 	static void LZ77UnCompVram(); // SWI 12h
@@ -100,9 +102,9 @@ public:
 	static unsigned long FASTCALL(load8u(unsigned long addr));
 	static void load32_array(unsigned long addr, int num, unsigned long *data);
 
-	static char compile_and_link_branch_a[7];
-	static char invoke_arm[19];
-	static char read_tsc[3];
+	static char compile_and_link_branch_a[7+SECURITY_PADDING];
+	static char invoke_arm[19+SECURITY_PADDING];
+	static char read_tsc[3+SECURITY_PADDING];
 
 	static void FASTCALL(is_priviledged());
 	static void FASTCALL(remap_tcm(unsigned long value, unsigned long mode));

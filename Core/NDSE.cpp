@@ -25,9 +25,9 @@
 #include "Logging.h"
 #include "BIOS.h"
 #include "HLE.h"
+#include "HLCore.h"
 #include "loader_elf.h"
 #include "Processor.h"
-#include "io_observe.h"
 #include "SourceDebug.h"
 
 #include "NDSE.h"
@@ -76,6 +76,7 @@ void STDCALL Init()
 	//io_observer::init();
 
 	InitHLE();
+	InitHLCore();
 }
 
 unsigned long STDCALL PageSize()
