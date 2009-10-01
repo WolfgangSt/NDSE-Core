@@ -1,3 +1,5 @@
+#pragma warning(disable: 4244)
+
 #include "Logging.h"
 #include "Mem.h" // for namespaces _ARM
 #include "MemMap.h"

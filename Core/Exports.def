@@ -4,6 +4,8 @@ EXPORTS
 	PageSize
 	DebugMax
 	
+	TouchSet
+	
 	ARM7_GetPage
 	ARM9_GetPage
 	

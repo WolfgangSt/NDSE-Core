@@ -24,11 +24,11 @@ enum
 #define IBITS (2 << (~ctx.regs[15] & 1))
 #define ADDR_IP(x) u32 x;\
 	if (flags & disassembler::U_BIT)\
-		addr = ctx.regs[Rn];\
-	else addr = (u32)(-(signed long)ctx.regs[Rn]); \
+		x = ctx.regs[Rn];\
+	else x = (u32)(-(signed long)ctx.regs[Rn]); \
 	if (Rn == 15) \
-		addr += IBITS; \
-	addr += imm
+		x += IBITS; \
+	x += imm
 
 #define BREAK_IF_PC(x) if (x == 15) undefined()
 

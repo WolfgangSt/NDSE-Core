@@ -47,16 +47,25 @@ void source_debug::add(unsigned long start, unsigned long end, source_info* info
 int source_debug::add_source(const std::string &src)
 {
 	// most important: nomalize filename before anything else
-	// as it could be that different objects use different names!
+	// as it could be that different objects use different names
+	// pointing to the same source file!
 	// it is assumed that the input filename is either ascii or utf8 format
 	//
 	// Note: QFileInfo is a bad error prone replacement see .h for details
 
+	/*
 	QString qsrc(src.c_str());
 	QDir d(qsrc);
 	//QString s = d.canonicalPath(); // fails on non existant files
 	QString s = d.absolutePath();
 	std::wstring name = s.toStdWString();
+	*/
+
+	// WARNING: THIS IS A TEMPORARY HACK TO GET RID OF QT DEPENDANCIES
+	//          FIX THIS ASAP AS THIS CONFLICTS WITH SOURCE LEVEL DEBUGGING
+	//          UTF8 INPUT IS _IGNORED_ TOO
+
+	std::wstring name(src.begin(), src.end());
 
 	// search and return index if already added
 	int idx = 0;

@@ -237,6 +237,18 @@ cpu_mode STDCALL ARM7_GetMode()
 	return processor<_ARM7>::mode;
 }
 
+void STDCALL ARM7_AddIOCallback(io_callback r, io_callback w)
+{
+	
+	memory::registers7_1.add_callback(r, w);
+}
+
+void STDCALL ARM9_AddIOCallback(io_callback r, io_callback w)
+{
+	memory::registers9_1.add_callback(r, w);
+}
+
+
 
 bool STDCALL ARM9_Continue()
 {
@@ -460,6 +472,11 @@ source_info* STDCALL ARM9_SourceLine(unsigned long addr, int idx)
 		}
 		return *it;
 	}
+}
+
+void STDCALL TouchSet(int x, int y)
+{
+	memory::registers7_1.touch_setxy(x, y);
 }
 
 #if 0

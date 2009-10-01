@@ -39,6 +39,8 @@ extern "C"{
 
 typedef void (STDCALL *stream_callback)(memory_block*, char*, int, void*);
 typedef void (STDCALL *log_callback)(const char* log);
+typedef void (STDCALL *io_callback)(unsigned long addr, unsigned long *value);
+
 
 IMPORT void STDCALL Init();
 
@@ -63,6 +65,7 @@ IMPORT source_info* STDCALL ARM7_SourceLine(unsigned long addr, int idx);
 IMPORT callstack_context* STDCALL ARM7_Callstack();
 IMPORT void STDCALL ARM7_Interrupt(unsigned long intr);
 IMPORT cpu_mode STDCALL ARM7_GetMode();
+IMPORT void STDCALL ARM7_AddIOCallback(io_callback r, io_callback w);
 
 IMPORT memory_block* STDCALL ARM9_GetPage(unsigned long addr);
 IMPORT const char* STDCALL ARM9_DisassembleA(unsigned long op, unsigned long addr);
@@ -85,11 +88,14 @@ IMPORT source_info* STDCALL ARM9_SourceLine(unsigned long addr, int idx);
 IMPORT callstack_context* STDCALL ARM9_Callstack();
 IMPORT void STDCALL ARM9_Interrupt(unsigned long intr);
 IMPORT cpu_mode STDCALL ARM9_GetMode();
+IMPORT void STDCALL ARM9_AddIOCallback(io_callback r, io_callback w);
+
 
 IMPORT bool STDCALL UTIL_LoadFile(const char *filename, util::load_result *result, util::load_hint lh);
 IMPORT memory_region_base* STDCALL MEM_GetVRAM(int bank);
 IMPORT unsigned long STDCALL PageSize();
 IMPORT unsigned long STDCALL DebugMax();
+IMPORT void STDCALL TouchSet(int x, int y);
 IMPORT void STDCALL DEFAULT_Log(log_callback cb);
 
 IMPORT const char* STDCALL DEBUGGER_GetSymbol(void *addr);

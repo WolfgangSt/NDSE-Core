@@ -534,22 +534,11 @@ void compiler::generic_load_post()
 
 void compiler::generic_load_r()
 {
-	
-	break_if_pc(ctx.rd);           // todo handle rd = PC
-	//generic_load();
-	load_ecx_reg_or_pc(ctx.rn, 0); // imm is used for shifter here!
-	//generic_loadstore_shift();   // r versions should use imm for register id
-	
-	/*
-	unsigned long imm4 = ctx.imm & 0xF;
-	break_if_pc(imm4);
-	s << "\x03\x4D" << (char)OFFSET(regs[imm4]); // add ecx, [ebp+Rimm4]
-	*/
-
-	if (ctx.flags & disassembler::U_BIT)
-		s << "\x03\x4D" << (char)OFFSET(regs[ctx.rm]); // add ecx, [ebp+rm]
-	else s << "\x2B\x4D" << (char)OFFSET(regs[ctx.rm]); // sub ecx, [ebp+rm]
-	
+	break_if_pc(ctx.rd);                 // todo handle rd = PC
+	load_ecx_reg_or_pc(ctx.rn);          // ecx = reg[rn]
+	if (!(ctx.flags & disassembler::U_BIT))
+		s << "\xF7\xD9";                 // ecx = -ecx
+	generic_loadstore_shift();           // ecx += shifter
 }
 
 void compiler::generic_load_rs(bool post, bool wb)
@@ -1083,7 +1072,7 @@ DecodeReg:
 		CALLP(load8u)
 		s << "\x89\x45" << (char)OFFSET(regs[ctx.rd]);  // mov [ebp+rd], eax
 		break;
-	case INST::LDRB_RP: 
+	case INST::LDRB_RP: // fails with ldrb r0,[r6,r5 lsr#0x18]
 		generic_load_r();
 		CALLP(load8u)
 		s << "\x89\x45" << (char)OFFSET(regs[ctx.rd]);  // mov [ebp+rd], eax
@@ -1374,7 +1363,7 @@ DecodeReg:
 			write( s, ctx.imm );                           // imm
 		} else
 		{
-			load_ecx_reg_or_pc(ctx.rn, ctx.imm);
+			load_ecx_reg_or_pc(ctx.rn, ctx.imm);           // ecx = [ebp+rn] + imm
 			s << "\x89\x4D" << (char)OFFSET(regs[ctx.rd]); // mov [ebp+rd], ecx
 		}
 		if (ctx.flags & disassembler::S_BIT)
@@ -1395,6 +1384,52 @@ DecodeReg:
 				store_flags();
 			break;
 		}
+
+	case INST::ADC_I: // Rd = Rn + shifter_imm + carry
+		{
+/*
+01848EEC 81 45 20 DE C0 AD 0B add         dword ptr [ebp+20h],0BADC0DEh 
+01848EF3 81 55 20 DE C0 AD 0B adc         dword ptr [ebp+20h],0BADC0DEh 
+*/
+			break_if_pc(ctx.rd);
+			if (ctx.rn == ctx.rd)
+			{
+				break_if_pc(ctx.rn);
+				load_flags();
+				s << "\x81\x55" << (char)OFFSET(regs[ctx.rn]); // adc [ebp+rn],
+				write( s, ctx.imm );                           // imm
+			} else
+			{
+				load_ecx_reg_or_pc(ctx.rn, ctx.imm);           // ecx = [ebp+rn] + imm
+				load_flags();
+				s << "\x83\xD1" << (char)0;                    // adc ecx, 0				
+				s << "\x89\x4D" << (char)OFFSET(regs[ctx.rd]); // mov [ebp+rd], ecx
+			}
+			if (ctx.flags & disassembler::S_BIT)
+				store_flags();
+			break;
+
+			/*
+			load_shifter_imm();
+			s << '\x50'; // push eax
+			load_flags();
+			s << '\x58'; // pop eax
+
+			if (ctx.rn == ctx.rd)
+			{
+				s << "\x11\x45" << (char)OFFSET(regs[ctx.rn]); // adc [ebp+Rn], eax
+			} else
+			{
+				s << "\x13\x45" << (char)OFFSET(regs[ctx.rn]); // adc eax, [ebp+Rn]
+				s << "\x89\x45" << (char)OFFSET(regs[ctx.rd]); // mov [ebp+rd], eax
+			}
+			if (ctx.flags & disassembler::S_BIT)
+				store_flags();
+			*/
+
+			break;
+		}
+
 	case INST::ADC_R: // Rd = Rn + shifter_imm + carry
 		{
 			// optimize this
@@ -1453,7 +1488,7 @@ DecodeReg:
 				load_flags();
 			s << "\x8B\x45" << (char)OFFSET(regs[ctx.rn]); // mov eax, [ebp+rn]
 			s << "\xF5";                                   // cmc
-			s << "\x1D" << (unsigned long)(ctx.imm);       // sbb eax, imm
+			s << "\x1D"; write(s, ctx.imm);                // sbb eax, imm
 			s << "\x89\x45" << (char)OFFSET(regs[ctx.rd]); // mov [ebp+rd], eax
 			if (ctx.flags & disassembler::S_BIT)
 			{

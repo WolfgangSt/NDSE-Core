@@ -1,8 +1,6 @@
 #ifndef _BREAKPOINT_H_
 #define _BREAKPOINT_H_
 
-#include <QMutex>
-#include <QMutexLocker>
 #include <boost/thread/mutex.hpp>
 
 #include <map>
@@ -40,7 +38,7 @@ public:
 protected:
 	// shouldnt share this over processors
 	// => this renders concurrent multi processor debugging unavailable!
-	static QMutex dt_lock;
+	static boost::mutex dt_lock;
 	static debugger_table dt;
 	static break_info *last_error;
 	static break_data last_block;
@@ -49,7 +47,7 @@ public:
 	static break_info* resolve(char *ip)
 	{
 		breakpoints_base::debugger_table::iterator it;
-		QMutexLocker g(&breakpoints_base::dt_lock);
+		boost::mutex::scoped_lock g(breakpoints_base::dt_lock);
 		it = dt.find( ip );
 		if (it == breakpoints_base::dt.end())
 			return 0;
@@ -72,7 +70,7 @@ public:
 
 
 template<typename T> breakpoint_defs::debugger_table breakpoints_base<T>::dt;
-template<typename T> QMutex breakpoints_base<T>::dt_lock;
+template<typename T> boost::mutex breakpoints_base<T>::dt_lock;
 template<typename T> breakpoint_defs::break_info* breakpoints_base<T>::last_error;
 template<typename T> bool breakpoints_base<T>::has_last_error;
 template<typename T> breakpoint_defs::break_data breakpoints_base<T>::last_block;
@@ -142,7 +140,7 @@ private:
 
 		// need to patch
 		{
-			QMutexLocker g(&breakpoints_base<T>::dt_lock);
+			boost::mutex::scoped_lock g(breakpoints_base::dt_lock);
 			breakpoints_base<T>::dt[bi.pos] = &bi;
 		}
 		*bi.pos = DEBUG_BREAK;
@@ -159,7 +157,7 @@ private:
 		*bi.pos = bi.original_byte;
 		bi.patched = false;
 		{
-			QMutexLocker g(&breakpoints_base<T>::dt_lock);
+			boost::mutex::scoped_lock g(breakpoints_base::dt_lock);
 			breakpoints_base<T>::dt.erase( bi.pos );
 		}
 	}
@@ -170,7 +168,7 @@ private:
 	{
 		if (bi.patched)
 		{
-			QMutexLocker g(&breakpoints_base<T>::dt_lock);
+			boost::mutex::scoped_lock g(breakpoints_base::dt_lock);
 			breakpoints_base<T>::dt.erase(bi.pos);
 		}
 		bi.pos = 0;

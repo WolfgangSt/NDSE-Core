@@ -1,4 +1,7 @@
+
+
 #include "IORegs.h"
+
 #include "Logging.h"
 #include "Compiler.h" // for DebugBreak_
 #include "MemMap.h"
@@ -8,8 +11,8 @@
 #include "Processor.h"
 #include "Interrupt.h"
 
-// todo: outsource name lookup to an array ....
-
+// TODO: outsource name lookup to an array ....
+// TODO: move SPI to a plugin!
 
 union endian_access
 {
@@ -82,6 +85,28 @@ void ioregs::flag_fifo(unsigned long state)
 {
 	// need to guard
 	ipc_fifocnt = (ipc_fifocnt & 0xFFFFFCFF) | (state << 8);
+}
+
+void ioregs::add_callback(io_callback r, io_callback w)
+{
+	if (r)
+		readcbs.push_back(r);
+	if (w)
+		writecbs.push_back(w);
+}
+
+void ioregs::readcb(unsigned long addr, unsigned long &value)
+{
+	for (std::vector<io_callback>::const_iterator it = 
+		readcbs.begin(); it != readcbs.end(); ++it)
+		(*it)(addr, &value);
+}
+
+void ioregs::writecb(unsigned long addr, unsigned long &value)
+{
+	for (std::vector<io_callback>::const_iterator it = 
+		writecbs.begin(); it != writecbs.end(); ++it)
+		(*it)(addr, &value);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -180,6 +205,8 @@ REGISTERS9_1::REGISTERS9_1( const char *name, unsigned long color, unsigned long
 	DEF_NAME_2(0x010C, "^[TM3CNT_L] Timer 3 counter");
 	DEF_NAME_2(0x010E, "^[TM3CNT_H] Timer 3 control");
 
+	DEF_NAME_2(0x0130, "^[KEYINPUT] Key Input");
+
 	DEF_NAME_2(0x0180, "^[IPCSYNC] IPC Synchronize Register");
 	DEF_NAME_2(0x0184, "^[IPCFIFOCNT] IPC Fifo Control");
 	DEF_NAME_4(0x0188, "^[IPCFIFOSEND] IPC Send Fifo");
@@ -239,6 +266,7 @@ void REGISTERS9_1::store32(unsigned long addr, unsigned long value)
 	bool remap_vram = false;
 	unsigned long addr4k = addr & 0x1FFF;
 
+	writecb(addr, value);
 	switch (addr4k)
 	{
 	case 0xB8:
@@ -353,9 +381,11 @@ unsigned long REGISTERS9_1::load32(unsigned long addr)
 
 	switch (addr4k)
 	{
-	case 0x180: return get_ipc();
-	case 0x184: return get_fifocnt();
+	case 0x180: current = get_ipc(); break;
+	case 0x184: current = get_fifocnt(); break;
 	}
+
+	readcb(addr, current);
 	return current;
 }
 
@@ -396,6 +426,16 @@ REGISTERS7_1::REGISTERS7_1( const char *name, unsigned long color, unsigned long
 
 	DEF_NAME_2(0x0004, "^[DISPSTAT] Display Status");
 	DEF_NAME_2(0x0006, "^[VCOUNT] V count comparison");
+
+	DEF_NAME_2(0x0100, "^[TM0CNT_L] Timer 0 Counter");
+	DEF_NAME_2(0x0102, "^[TM0CNT_H] Timer 0 Control");
+	DEF_NAME_2(0x0104, "^[TM1CNT_L] Timer 1 Counter");
+	DEF_NAME_2(0x0106, "^[TM1CNT_H] Timer 1 Control");
+	DEF_NAME_2(0x0108, "^[TM2CNT_L] Timer 2 Counter");
+	DEF_NAME_2(0x010A, "^[TM2CNT_H] Timer 2 Control");
+	DEF_NAME_2(0x010C, "^[TM3CNT_L] Timer 3 Counter");
+	DEF_NAME_2(0x010E, "^[TM3CNT_H] Timer 3 Control");
+
 	DEF_NAME_2(0x0134, "^[DRCNT] Debug RCNT");
 	DEF_NAME_2(0x0136, "^[EXTKEYIN] Key X/Y Input");
 	DEF_NAME_2(0x0138, "^[RTC] RTC Realtime Clock Bus");
@@ -412,47 +452,134 @@ REGISTERS7_1::REGISTERS7_1( const char *name, unsigned long color, unsigned long
 	DEF_NAME_2(0x0304, "^[POWCNT2] Sound/Wifi Power Control Register");
 }
 
-// probably going to outsource SPI
+// probably going to outsource SPI (see TODO at top)
+
+void REGISTERS7_1::touch_setxy(int x, int y)
+{
+	dtx = x - tx;
+	dty = y - ty;
+	tx = x;
+	ty = y;
+}
 
 void REGISTERS7_1::set_spicnt(unsigned long value)
 {
 	spicnt = value & 0xFFFF;
+	
 }
 
 void REGISTERS7_1::set_spidat(unsigned long value)
 {
-	//spidata = rand();
 	spidata = 0;
-	unsigned long chn = (value >> 4) & 0x7;
-	unsigned long differential = (value & 0x4);
+	//spidata = 0;
+	
+	unsigned long start = (value & 0x80);
+	if (start)
+	{
+		spidatanum = 1;
+		spi_in[0] = value;
+	}
+	else if (spidatanum < 4)
+		spi_in[spidatanum++] = value;
+	else spidatanum++;
+
+	unsigned long chn = (spi_in[0] >> 4) & 0x7;
+	unsigned long differential = !(spi_in[0] & 0x4);
+
 	switch ((spicnt >> 8) & 3)
 	{
 	case 0: break; // Powerman
 	case 1: break; // Firmware
 	case 2: // Touchscreen
-		
-		switch (chn)
 		{
-		case 0:        // Temperature 0
-			spidata = 0x100;
+			unsigned long resbyte = 0;
+			switch (chn)
+			{
+			case 0:        // Temperature 0
+				if (differential)
+				{
+					logging<_DEFAULT>::log("Temperature 0 is not accessable in differential mode");
+					DebugBreak_();
+				}
+				resbyte = 0x2F8;
+				break; 
+			case 7:
+				if (differential)
+				{
+					logging<_DEFAULT>::log("Temperature 1 is not accessable in differential mode");
+					DebugBreak_();
+				}
+				resbyte = 0x384;
+				break;
+
+			case 1: // Touchscreen Y
+				if (differential)
+				{
+					
+					resbyte = dty * 0xE;
+					if (spidatanum == 3)
+					{
+						if (dty)
+							logging<_DEFAULT>::logf("DTY: %i", dty);
+						dty = 0;
+					}
+					resbyte &= 0xFFF;
+					
+
+					/*
+					if (ty < 0 || ty > 256)
+						resbyte = 0xFFF;
+					else
+						resbyte = 0xB0 + (ty * 0xE70) / 0xFF;
+					*/
+
+					logging<_DEFAULT>::logf("Y: %3X", resbyte);
+				}
+				else 
+					resbyte = ty;
+				break;
+			case 5: // Touchscreen X
+				if (differential)
+				{
+					resbyte = dtx;
+					if (spidatanum == 3)
+					{
+						if (dtx)
+							logging<_DEFAULT>::logf("DTX: %i", dtx);
+						dtx = 0;
+					}
+				}
+				else 
+					resbyte = tx;
+				break;
+
+				/*
+			case 1:        // Touchscreen Y
+				if (differential)
+					spidata = 0x1;
+				else spidata = 0x6B0; // B0-F20 (FFF = disable)
+				break; 
+			case 2: break; // Battery Voltage
+			case 3: break; // Touchscreen Z1
+			case 4: break; // Touchscreen Z2
+			case 5:        // Touchscreen X
+				if (differential)
+					spidata = 0xF0;
+				else spidata = 0x700; // 100-ED0 (0 = disable)
+				break;
+			case 6: break; // AUX input
+			case 7: spidata = 0x100; break; // Temperature 1
+			*/
+			}
+
+			switch (spidatanum)
+			{
+				case 2: spidata = (resbyte >> 5);        break;
+				case 3: spidata = (resbyte << 3) & 0xFF; break;
+			}
+
 			break; 
-		case 1:        // Touchscreen Y
-			if (differential)
-				spidata = 0x1;
-			else spidata = 0x6B0; // B0-F20 (FFF = disable)
-			break; 
-		case 2: break; // Battery Voltage
-		case 3: break; // Touchscreen Z1
-		case 4: break; // Touchscreen Z2
-		case 5:        // Touchscreen X
-			if (differential)
-				spidata = 0xF0;
-			else spidata = 0x700; // 100-ED0 (0 = disable)
-			break;
-		case 6: break; // AUX input
-		case 7: spidata = 1; break; // Temperature 1
 		}
-		break; 
 	case 3: break; // Reserved
 	}
 	//logging<_ARM7>::logf("SPIDATA=%04X", value & 0xFFFF);
@@ -466,6 +593,7 @@ void REGISTERS7_1::store32(unsigned long addr, unsigned long value)
 	unsigned long &current = *(unsigned long*)(&b->mem[subaddr]);
 	unsigned long addr4k = addr & 0x1FFF;
 
+	writecb(addr, value);
 	switch (addr4k)
 	{
 	case 0x180:
@@ -497,8 +625,12 @@ void REGISTERS7_1::store32(unsigned long addr, unsigned long value)
 		if (name == lastname)
 			continue;
 		lastname = name;
-		if (name == NONAME) logging<_ARM7>::logf("Unhandled write to ARM7::IO::%08X", addr+i);
-		else if (name[0] != '^') logging<_ARM7>::logf("Write to ARM7::IO::%08X [%s]", addr+i, name);
+		if (name == NONAME) logging<_ARM7>::logf(
+			"Unhandled write to ARM7::IO::%08X [%08X => %08X]", 
+			addr+i, current, value);
+		else if (name[0] != '^') logging<_ARM7>::logf(
+			"Write to ARM7::IO::%08X [%s] [%08X => %08X]", 
+			addr+i, name, current, value);
 	}
 
 	if (current != value)
@@ -579,18 +711,18 @@ unsigned long REGISTERS7_1::load32(unsigned long addr)
 
 	switch (addr4k)
 	{
-	case 0x0136: return 0xD; // TODO: this is a temporary hack reporting no X/Y/DEBUG button
-	case 0x0180: return get_ipc();
-	case 0x0184: return get_fifocnt();
+	case 0x0180: current = get_ipc(); break;
+	case 0x0184: current = get_fifocnt(); break;
 	case 0x01C0: // SPI requires the 16bit handler!
 		{
 			endian_access e;
 			e.h[0] = (unsigned short)load16u(addr);
 			e.h[1] = (unsigned short)load16u(addr+2);
-			return e.w;
+			current = e.w;
 		}
 		break;
 	}
+	readcb(addr, current);
 	return current;
 }
 

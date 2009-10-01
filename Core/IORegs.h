@@ -1,12 +1,14 @@
 #ifndef _IOREGS_H_
 #define _IOREGS_H_
 
+#include "NDSE.h"
 #include "memregion.h"
 #include "fifo.h"
+#include <vector>
 
 #pragma warning(push)
 #pragma warning(disable: 4244)
-#include <boost/detail/spinlock.hpp>
+#include <boost/smart_ptr/detail/spinlock.hpp>
 #pragma warning(pop)
 
 struct ioregs
@@ -16,6 +18,8 @@ private:
 	unsigned long ipc;         // needs a mutex!
 	unsigned long ipc_fifocnt; // needs a mutex!
 	fifo<16> ipc_fifo;         // needs a mutex!
+	std::vector<io_callback> readcbs;
+	std::vector<io_callback> writecbs;
 public:
 	ioregs();
 	void set_ipc(unsigned long remote_ipc);
@@ -25,6 +29,10 @@ public:
 	bool pop_fifo(unsigned long &value); // trys to pop a value
 	void push_fifo(unsigned long value); // pushs a value into fifo
 	void flag_fifo(unsigned long state); // updates with remote state
+
+	void add_callback(io_callback r, io_callback w);
+	void readcb(unsigned long addr, unsigned long &value);
+	void writecb(unsigned long addr, unsigned long &value);
 };
 
 struct REGISTERS9_1: public memory_region< PAGING::KB<8> >, public ioregs
@@ -48,6 +56,11 @@ struct REGISTERS7_1: public memory_region< PAGING::KB<8> >, public ioregs
 	const char* names[SIZE];
 	unsigned long spicnt;
 	unsigned long spidata;
+	unsigned long spidatanum;
+	unsigned long spi_in[4];
+	int tx, ty, dtx, dty;
+
+	void touch_setxy(int x, int y);
 	void set_spicnt(unsigned long value);
 	void set_spidat(unsigned long value);
 

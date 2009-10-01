@@ -32,6 +32,8 @@
 // for this purpose currently a normalized wstring is used
 // which doesnt resolve symbolic links
 
+// IMPORTANT: UTF8 INPUT IS IGNORED AND NO CANONICALIZATION IS DONE
+//            DUE TO QT DEPENDANCIES, FIX THIS ASAP
 
 
 class source_set
