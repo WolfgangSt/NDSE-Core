@@ -15,8 +15,11 @@
 // for address -> source file(s)/line(s) mappings using ITL
 // and source file/line -> address(es) mapping
 #include <list>
+
+using namespace std; // temporary to fix a bug in itl!
 #include <itl/itl_value.hpp>
 #include <itl/split_interval_map.hpp>
+
 #include <algorithm>
 #include <deque>
 #include <vector>

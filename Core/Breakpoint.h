@@ -399,7 +399,7 @@ public:
 		// should lower those if possible ...
 		_DecodedInst instructions[breakpoint_defs::MAX_SUBINSTRUCTIONS_DISTORM];
 		unsigned int decoded = 0;
-		if (distorm_decode32( 0, (unsigned char*)start, (int)sz, Decode32Bits, 
+		if (distorm_decode( 0, (unsigned char*)start, (int)sz, Decode32Bits, 
 			instructions, breakpoint_defs::MAX_SUBINSTRUCTIONS_DISTORM, &decoded ) == DECRES_SUCCESS)
 		{
 			if (decoded  > breakpoint_defs::MAX_SUBINSTRUCTIONS)

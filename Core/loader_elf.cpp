@@ -3,7 +3,7 @@
 #include "SourceDebug.h"
 
 #include <assert.h>
-#include <libelf/libelf.h>
+#include <libelf.h>
 #include <libdwarf/libdwarf.h>
 #include <libdwarf/dwarf.h>
 #include <vector>
