@@ -1,0 +1,9 @@
+[submodule "libdwarf"]
+	path = libdwarf
+	url = git://github.com/WolfgangSt/libdwarf.git
+[submodule "distorm64"]
+	path = distorm64
+	url = git://github.com/WolfgangSt/distorm64.git
+[submodule "itl"]
+	path = itl
+	url = git://github.com/WolfgangSt/itl.git
