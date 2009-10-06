@@ -64,7 +64,7 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
-				AdditionalDependencies="kernel32.lib user32.lib libdistormd.lib libelfd.lib libdwarfd.lib winmm.lib QTCored4.lib $(NOINHERIT)"
+				AdditionalDependencies="kernel32.lib user32.lib libdistormd.lib libelfd.lib libdwarfd.lib winmm.lib $(NOINHERIT)"
 				OutputFile="$(OutDir)\$(ProjectName)d.dll"
 				LinkIncremental="2"
 				AdditionalLibraryDirectories="$(OutDir)"
@@ -146,7 +146,7 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
-				AdditionalDependencies="kernel32.lib user32.lib libdistorm.lib libelf.lib libdwarf.lib winmm.lib QTCore4.lib $(NOINHERIT)"
+				AdditionalDependencies="kernel32.lib user32.lib libdistorm.lib libelf.lib libdwarf.lib winmm.lib $(NOINHERIT)"
 				LinkIncremental="1"
 				AdditionalLibraryDirectories="$(OutDir)"
 				ModuleDefinitionFile="Exports.def"
