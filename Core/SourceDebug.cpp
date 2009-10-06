@@ -4,8 +4,8 @@
 #pragma warning(push)
 #pragma warning(disable: 4127)
 #include "SourceDebug.h"
-#include <QString>
-#include <QDir>
+//#include <QString>
+//#include <QDir>
 #pragma warning(pop)
 #include <algorithm>
 

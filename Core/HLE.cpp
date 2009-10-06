@@ -10,7 +10,8 @@
 #include "runner.h"
 #include "HLE.h"
 #include "Interrupt.h"
-#include <QThread>
+
+#include <boost/thread.hpp>
 
 // TODO: could give the compiler hints about the
 // b->flags & memory_block::PAGE_ACCESSHANDLER
@@ -665,12 +666,37 @@ template <typename T> void HLE<T>::crc16()
 
 
 
-class QPseudoThread: public QThread
+class QPseudoThread
 {
+private:
+	static boost::xtime delay(int secs, int msecs=0, int nsecs=0) 
+	{
+		const int MILLISECONDS_PER_SECOND = 1000; 
+		const int NANOSECONDS_PER_SECOND = 1000000000; 
+		const int NANOSECONDS_PER_MILLISECOND = 1000000; 
+
+		boost::xtime xt; 
+		if (boost::TIME_UTC != boost::xtime_get (&xt, boost::TIME_UTC)) 
+			assert(0);
+		nsecs += xt.nsec; 
+		msecs += nsecs / NANOSECONDS_PER_MILLISECOND; 
+		secs += msecs / MILLISECONDS_PER_SECOND; 
+		nsecs += (msecs % MILLISECONDS_PER_SECOND) * 
+		NANOSECONDS_PER_MILLISECOND; 
+		xt.nsec = nsecs % NANOSECONDS_PER_SECOND; 
+		xt.sec += secs + (nsecs / NANOSECONDS_PER_SECOND); 
+
+		return xt; 
+	}
 public:
 	static void do_sleep(int ms)
 	{
-		msleep(ms);
+		boost::thread::sleep(delay(0, ms));
+	}
+
+	static void yieldCurrentThread()
+	{
+		boost::thread::yield();
 	}
 };
 
