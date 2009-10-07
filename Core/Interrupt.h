@@ -7,8 +7,8 @@
 // current approach:
 //
 // HLE branch invokes a poll
-// when there is an interrupt available then a HLE::invoke is done
-// on the irq.
+// when there is an interrupt available then a synchronous 
+// HLE::invoke is done on the irq.
 // This is just a suboptimal handling when it comes to recursive
 // interrupts that (potentially) never actually return
 // as they would create a recursive callchain inside the poll/invoke
@@ -43,6 +43,10 @@ IntRet:
 */
 
 
+//! Defines the working stack as it is used on the TCM
+/*! For details of the layout refer to devkit sources.
+    All we need from it is the offset to the IRQ handler atm
+*/
 struct wstack
 {
 	char irq_stack[160];
@@ -54,21 +58,16 @@ struct wstack
 	unsigned long irq_handler;
 };
 
-struct irq_entry
-{
-	unsigned long irq;
-	unsigned long mask;
-};
-
 template <typename T>
 struct interrupt 
 {
-	enum { MAX_INTERRUPTS = 25 };
-	static volatile long signaled; // max long bits interrupts
-	static bool inside;
+	enum { MAX_INTERRUPTS = 25 };  /*! Defines the number of interrupts */
+	static volatile long signaled; /*! Currently signaled interrupts */
+	static bool inside;            /*! set when currently within IRQ */
 
-	static void poll_process();
+	static void poll_process(); /*! Dispatchs currently signaled interrupts */
 	
+	/*! Signals the given interrupt */
 	static void fire(unsigned long interrupt)
 	{
 		static volatile long &DISPSTAT = *(volatile long*)
@@ -89,6 +88,9 @@ struct interrupt
 		}
 	}
 
+	/*! Internal helper that sets up IRQ and calls it
+	Synchronous: returns when the IRQ returned
+	*/
 	static void switch_and_invoke(unsigned long addr)
 	{
 		emulation_context &ctx_old = processor<T>::ctx();
@@ -122,7 +124,13 @@ struct interrupt
 		//HLE<T>::loadcpsr(ctx_exit.spsr, 0xFFFFFFFF);
 	}
 
-	// uses a full temporary register bank
+	
+	/*! Internal helper that sets up IRQ and calls it
+	Synchronous: returns when the IRQ returned
+	This is an old version that uses a full (fresh) context rather than
+	a different register bank.
+	This version is currently used.
+	*/
 	static void switch_and_invoke_old(unsigned long addr)
 	{	
 		emulation_context backup = processor<T>::ctx();
@@ -142,7 +150,7 @@ struct interrupt
 };
 
 
-// _ARM9 hardcoded here
+/*! _ARM9 specialization */
 template <> inline void interrupt<_ARM9>::poll_process()
 {
 	// early out of IE is false
@@ -183,7 +191,7 @@ template <> inline void interrupt<_ARM9>::poll_process()
 	}
 }
 
-// _ARM7 hardcoded here
+/*! _ARM7 specialization */
 template <> inline void interrupt<_ARM7>::poll_process()
 {
 	// early out of IE is false

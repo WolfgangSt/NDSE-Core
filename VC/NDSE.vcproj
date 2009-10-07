@@ -478,6 +478,34 @@
 				>
 			</File>
 		</Filter>
+		<Filter
+			Name="Documentation"
+			>
+			<File
+				RelativePath="..\doc\Doxyfile"
+				>
+				<FileConfiguration
+					Name="Debug|Win32"
+					>
+					<Tool
+						Name="VCCustomBuildTool"
+						Description="Building documentation"
+						CommandLine="pushd $(InputDir)&#x0D;&#x0A;doxygen $(InputPath)&#x0D;&#x0A;popd&#x0D;&#x0A;"
+						Outputs="$(InputDir)html\index.html"
+					/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Release|Win32"
+					>
+					<Tool
+						Name="VCCustomBuildTool"
+						Description="Building documentation"
+						CommandLine="pushd $(InputDir)&#x0D;&#x0A;doxygen $(InputPath)&#x0D;&#x0A;popd&#x0D;&#x0A;"
+						Outputs="$(InputDir)html\index.html"
+					/>
+				</FileConfiguration>
+			</File>
+		</Filter>
 		<File
 			RelativePath=".\Exports.def"
 			>
