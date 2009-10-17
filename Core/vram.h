@@ -1,6 +1,8 @@
 #ifndef _VRAM_H_
 #define _VRAM_H_
 
+#include "MemMap.h"
+
 struct vram
 {
 	static void remap();
@@ -10,7 +12,7 @@ struct vram
 template <typename T> struct vram_region: public memory_region<T>
 {
 	vram_region( const char *name, unsigned long color, unsigned long priority )
-		: memory_region(name, color, priority)
+		: memory_region<T>(name, color, priority)
 	{
 		// fast version can use PAGE_WRITEPROT8
 		// all specializing accesses gains would be a more detailed log info
@@ -19,8 +21,8 @@ template <typename T> struct vram_region: public memory_region<T>
 		//for (int i = 0; i < PAGES; i++)
 		//	blocks[i].flags |= memory_block::PAGE_ACCESSHANDLER;
 
-		for (int i = 0; i < PAGES; i++)
-			blocks[i].flags |= memory_block::PAGE_WRITEPROT8;
+		for (int i = 0; i < memory_region<T>::PAGES; i++)
+			memory_region<T>::blocks[i].flags |= memory_block::PAGE_WRITEPROT8;
 	}
 
 	virtual void store32(unsigned long addr, unsigned long value)

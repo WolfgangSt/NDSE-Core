@@ -1,7 +1,7 @@
 #ifndef _BREAKPOINT_H_
 #define _BREAKPOINT_H_
 
-#include <boost/thread/mutex.hpp>
+#include <boost/thread.hpp>
 
 #include <map>
 #include "MemMap.h"

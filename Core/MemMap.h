@@ -67,6 +67,7 @@ struct region_entry
 	}
 };
 
+template <typename T> class memory_map;
 #include "PhysMem.h"
 
 

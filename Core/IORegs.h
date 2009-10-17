@@ -2,19 +2,22 @@
 #define _IOREGS_H_
 
 #include "NDSE.h"
-#include "memregion.h"
+#include "MemRegion.h"
 #include "fifo.h"
 #include <vector>
 
 #pragma warning(push)
 #pragma warning(disable: 4244)
-#include <boost/smart_ptr/detail/spinlock.hpp>
+//#include <boost/smart_ptr/detail/spinlock.hpp>
+#include <boost/thread/mutex.hpp>
 #pragma warning(pop)
 
 struct ioregs
 {
 private:
-	boost::detail::spinlock ipc_mutex;
+	//boost::detail::spinlock ipc_mutex; // incompatible with *nix version as most have other boost
+	boost::mutex ipc_mutex;
+
 	unsigned long ipc;         // needs a mutex!
 	unsigned long ipc_fifocnt; // needs a mutex!
 	fifo<16> ipc_fifo;         // needs a mutex!
