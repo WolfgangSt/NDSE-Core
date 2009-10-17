@@ -23,7 +23,6 @@
 #include "Compiler.h"
 #include "Breakpoint.h"
 #include "Logging.h"
-#include "BIOS.h"
 #include "HLE.h"
 #include "HLCore.h"
 #include "loader_elf.h"
@@ -133,12 +132,12 @@ bool STDCALL UTIL_LoadFile(const char *filename, util::load_result *result, util
 
 unsigned short STDCALL BIOS_ARM9_GetCRC16(unsigned short crc, unsigned long addr, int len)
 {
-	return bios<_ARM9>::get_crc16( crc, addr, len );
+	return HLE<_ARM9>::crc16_direct(crc, addr, len);
 }
 
 unsigned short STDCALL BIOS_ARM7_GetCRC16(unsigned short crc, unsigned long addr, int len)
 {
-	return bios<_ARM7>::get_crc16( crc, addr, len );
+	return HLE<_ARM7>::crc16_direct(crc, addr, len);
 }
 
 

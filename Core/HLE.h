@@ -2,18 +2,21 @@
 #define _HLE_H_
 
 #include <map>
+#include "forward.h"
+#include "runner.h"
+#include "Processor.h"
 #include "Mem.h"
-//#include "runner.h"
-//#include "Compiler.h"
 
 #ifdef WIN32
 #define FASTCALL(x) __fastcall x
-#define FASTCALL_F(x) FASTCALL(x)
+#define FASTCALL_F(x) (x)
+#define FASTCALL_G __fastcall
 #define FASTCALL_IMPL(x) FASTCALL(x)
 #define NAKEDCALL_IMPL(x) __declspec(naked) __fastcall x
 #else
 #define FASTCALL(x) x; __attribute__((fastcall))
 #define FASTCALL_F(x) x __attribute__((fastcall))
+#define FASTCALL_G
 #define FASTCALL_IMPL(x) __attribute__((fastcall)) x
 #define NAKEDCALL_IMPL(x) __attribute__((fastcall)) __attribute__((naked)) x
 #endif
@@ -62,8 +65,8 @@ struct stream_debugstring
 };
 
 // might need patching under nix
-typedef void FASTCALL_F((*invoke_fun)(unsigned long, void*));
-typedef unsigned long FASTCALL_F((*readtsc_fun)());
+typedef void FASTCALL_F((FASTCALL_G *invoke_fun)(unsigned long, void*));
+typedef unsigned long FASTCALL_F((FASTCALL_G *readtsc_fun)());
 
 struct emulation_context;
 template <typename T>
@@ -115,9 +118,107 @@ public:
 	static void FASTCALL(swi(unsigned long idx));
 	static void FASTCALL(debug_magic(unsigned long addr));
 
+	static unsigned short crc16_direct(unsigned short crc, unsigned long addr, int len);
+
 	static void dump_btab();
 };
 template <typename T> unsigned long HLE<T>::last_halt = 0;
+
+
+template <typename T>
+void FASTCALL_IMPL(HLE<T>::debug_magic(unsigned long addr))
+{
+	unsigned short magic, flags;
+	memory_block *b;
+	if (addr & 1)
+	{
+		// thumb mode
+		addr++; // skip branch
+		// try reading a word
+		b = memory_map<T>::addr2page(addr);
+		if (b->flags & (memory_block::PAGE_INVALID | memory_block::PAGE_READPROT))
+			return;
+		magic = *(unsigned short*)(&b->mem[addr & (PAGING::ADDRESS_MASK & (~1))]);
+		addr += 2;
+		b = memory_map<T>::addr2page(addr);
+		if (b->flags & (memory_block::PAGE_INVALID | memory_block::PAGE_READPROT))
+			return;
+		flags = *(unsigned short*)(&b->mem[addr & (PAGING::ADDRESS_MASK & (~1))]);
+	} else
+	{
+		// arm mode
+		addr += 4; // skip branch
+
+		// must be 4b aligned so read magic + flags
+		b = memory_map<T>::addr2page(addr);
+		if (b->flags & (memory_block::PAGE_INVALID | memory_block::PAGE_READPROT))
+			return;
+		magic = *(unsigned short*)(&b->mem[addr & (PAGING::ADDRESS_MASK & (~1))]);
+		addr += 2;
+		flags = *(unsigned short*)(&b->mem[addr & (PAGING::ADDRESS_MASK & (~1))]);
+	}
+	addr += 2;
+	switch (magic)
+	{
+	case NOCASH_DEBUGOUT:
+		// stream till terminating 0 or max 4kb
+		{
+			stream_debugstring::context ctx;
+			ctx.pos = 0;
+			ctx.running = true;
+			// pull the string
+			memory_map<T>::process_memory<stream_debugstring>( 
+				addr, stream_debugstring::MAX_LEN, ctx );
+			logging<T>::log(ctx.string);
+		}
+		break;
+	case NOCASH_EXT_HALT:
+		// break
+		if (last_halt != addr)
+		{
+			last_halt = addr;
+			logging<T>::logf("Emulator Software Breakpoint at %08X", addr);
+				
+			runner<T>::skip_instructions = 1;
+			DebugBreak_();
+		}
+		break;
+	case NOCASH_EXT_VERS:
+		// TODO: handle CPU mode
+		processor<T>::ctx().regs[0] = NDSE_VERSION;
+		break;
+	case NOCASH_EXT_SCRI:
+		{
+			// TODO: handle CPU mode
+			//unsigned long addr = processor<T>::ctx().regs[0];
+			//unsigned long size = processor<T>::ctx().regs[1];
+			unsigned long script = processor<T>::ctx().regs[2];
+				
+			stream_debugstring::context ctx;
+			ctx.pos = 0;
+			ctx.running = true;
+			// pull the string
+			memory_map<T>::process_memory<stream_debugstring>( 
+				script, stream_debugstring::MAX_LEN, ctx );
+			// try to evaluate the string
+			// this feature is not available yet!
+
+			logging<T>::log("Hostcalls are not supported yet");
+
+			processor<T>::ctx().regs[0] = 0;
+			break;
+		}
+	case NOCASH_EXT_RTSC:
+		{
+			// TODO: handle CPU mode
+			processor<T>::ctx().regs[0] = ((readtsc_fun)&read_tsc)();
+			break;
+		}
+	default:
+		logging<T>::logf("Unknown Debug Magic at %08X (%04X %04X)", addr, magic, flags);
+	}
+}
+
 
 struct symbols
 {

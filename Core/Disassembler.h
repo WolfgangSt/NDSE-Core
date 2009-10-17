@@ -2,7 +2,7 @@
 #define _DISASSEMBLER_
 
 #include <stdlib.h> // for _rotl
-#include "Mem.h"
+#include "forward.h"
 #include "osdep.h" // for rotr on *nix
 
 // pull U_BIT into instructions

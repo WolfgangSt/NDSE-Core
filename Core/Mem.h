@@ -3,6 +3,7 @@
 
 #include <utility>
 #include "Namespaces.h"
+#include "forward.h"
 
 // used to synchronize memory updates
 #ifdef __GNUC__
@@ -61,9 +62,6 @@ struct PAGING
 	};
 };
 
-template <typename T>
-struct compiled_block;
-
 // a raw memory block (physical page) of the emulated system
 
 struct compile_info
@@ -77,7 +75,6 @@ template <> compiled_block<IS_THUMB>* &compile_info::get<IS_THUMB>() { return th
 template <> compiled_block<IS_ARM>* &compile_info::get<IS_ARM>()   { return arm; };
 */
 
-struct memory_region_base;
 struct memory_block /* final, do not inherit! */
 {
 	enum {

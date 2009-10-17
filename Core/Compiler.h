@@ -10,10 +10,8 @@
 #include <map>
 #include <sstream>
 #include <list>
-#include "Mem.h"
+#include "forward.h"
 #include "Disassembler.h"
-#include "HLE.h"
-#include "CompiledBlock.h"
 
 #ifdef HLE_CORE
 #include "HLCore.h"

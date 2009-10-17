@@ -1,7 +1,7 @@
 #ifndef _VRAM_H_
 #define _VRAM_H_
 
-#include "MemMap.h"
+#include "forward.h"
 
 struct vram
 {

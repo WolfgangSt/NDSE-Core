@@ -1,7 +1,7 @@
 #ifndef _ARMCONTEXT_H_
 #define _ARMCONTEXT_H_
 
-// important: a maximum of 31 u32 registers is addressable through 
+// important: a maximum of 31 u32 registers is addressable through
 // JIT by using ebp+imm8.
 // This is expandable to 63 when using negative offsets if needed.
 

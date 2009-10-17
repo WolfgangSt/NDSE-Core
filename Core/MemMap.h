@@ -1,9 +1,7 @@
 #ifndef _MEMMAP_H_
 #define _MEMMAP_H_
 
-#include "Mem.h"
-#include "MemRegion.h"
-#include "Logging.h"
+
 #include <assert.h>
 #include <list>
 #include <algorithm>
@@ -11,8 +9,10 @@
 #include <itl/itl_value.hpp>
 #include <itl/split_interval_map.hpp>
 
+#include "forward.h"
+#include "MemRegionBase.h"
+#include "Logging.h"
 #include "Compiler.h" // for DebugBreak()_
-
 
 // information for a mapped interval
 // accumulates all overlapping memory_regions for its interval
@@ -67,7 +67,6 @@ struct region_entry
 	}
 };
 
-template <typename T> class memory_map;
 #include "PhysMem.h"
 
 

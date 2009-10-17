@@ -1,6 +1,11 @@
+/*
+
+*/
 #include "Mem.h"
-#include "Compiler.h"
 #include "Breakpoint.h"
+#include "Logging.h"
+#include "Compiler.h"
+
 
 const char* IS_ARM::name = "Arm";
 const char* IS_THUMB::name = "Thumb";

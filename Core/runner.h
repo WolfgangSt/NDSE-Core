@@ -1,17 +1,15 @@
 #ifndef _RUNNER_H_
 #define _RUNNER_H_
 
-#include "BreakpointBase.h"
-#include "Breakpoint.h"
+#include "forward.h"
+#include "osdep.h"          // for Fiber
+#include "BreakpointBase.h" // for breakpoint_defs
 
 #ifndef WIN32
 #define UlongToPtr(l) (void*)l
 #endif
 
 bool check_mem_access(void *start, size_t sz);
-
-template <typename T> class breakpoints_base;
-template <typename T, typename U> class breakpoints;
 
 template <typename T>
 struct exception_context

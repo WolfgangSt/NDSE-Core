@@ -1,16 +1,14 @@
 #ifndef _IOREGS_H_
 #define _IOREGS_H_
 
-#include "NDSE.h"
-#include "MemRegion.h"
-#include "fifo.h"
 #include <vector>
-
-#pragma warning(push)
-#pragma warning(disable: 4244)
 //#include <boost/smart_ptr/detail/spinlock.hpp>
 #include <boost/thread/mutex.hpp>
-#pragma warning(pop)
+
+#include "forward.h"
+#include "fifo.h"
+#include "NDSE.h" // for io_callback
+#include "MemRegion.h"
 
 struct ioregs
 {

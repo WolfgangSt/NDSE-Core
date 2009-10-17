@@ -1,8 +1,7 @@
 #ifndef _INTERRUPT_H_
 #define _INTERRUPT_H_
 
-#include "HLE.h"
-
+#include "forward.h"
 
 // current approach:
 //

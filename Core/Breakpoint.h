@@ -2,20 +2,15 @@
 #define _BREAKPOINT_H_
 
 #include <boost/thread.hpp>
-
 #include <map>
-#include "MemMap.h"
-#include "Processor.h"
 #include <distorm.h>
-#include "BreakpointBase.h"
-#include "jitcode.h"
-#include "SourceDebug.h"
-#include "runner.h"
 
+#include "forward.h"
+#include "BreakpointBase.h"
+#include "MemMap.h"
 
 // when memory fragmentation ever gets a problem use pool allocators
 // for break_data and all the maps! 
-
 
 // TODO: handle single stepping breaks more safe (reusing the breakmap)
 // as rebuilding on the fly using update_breakdata might lead to wrong 
@@ -25,9 +20,6 @@
 // need to guard the breakpoint table
 // as JIT threads read on crash and emulator UI thread might change
 // concurrently as they resolve
-
-class source_set;
-template <typename T> struct runner;
 
 template <typename T>
 class breakpoints_base: public breakpoint_defs

@@ -638,6 +638,15 @@ struct stream_crc16
 	}
 };
 
+template <typename T> unsigned short HLE<T>::crc16_direct(unsigned short crc, unsigned long addr, int len)
+{
+	stream_crc16::context ctx;
+	ctx.crc = crc;
+	memory_map<T>::process_memory<stream_crc16>( addr, len, ctx );
+	processor<T>::ctx().regs[0] = ctx.crc;
+	return ctx.crc;
+}
+
 template <typename T> void HLE<T>::crc16()
 {
 	// r0  Initial CRC value (16bit, usually FFFFh)
@@ -646,6 +655,7 @@ template <typename T> void HLE<T>::crc16()
 	logging<T>::logf("SWI Eh [crc16] called");
 
 	// TODO: handle CPU mode
+	/*
 	stream_crc16::context ctx;
 	ctx.crc  = processor<T>::ctx().regs[0];
 	unsigned long addr = processor<T>::ctx().regs[1];
@@ -662,6 +672,12 @@ template <typename T> void HLE<T>::crc16()
 	}
 	memory_map<T>::process_memory<stream_crc16>( addr, len, ctx );
 	processor<T>::ctx().regs[0] = ctx.crc;
+	*/
+
+	processor<T>::ctx().regs[0] = crc16_direct( 
+		processor<T>::ctx().regs[0], 
+		processor<T>::ctx().regs[1],
+		processor<T>::ctx().regs[2]);
 }
 
 
@@ -735,6 +751,7 @@ void FASTCALL_IMPL(HLE<_ARM9>::swi(unsigned long idx))
 	case 0x8: return HLE<_ARM9>::sqrt();
 	case 0x9: return HLE<_ARM9>::div();
 	case 0xB: return HLE<_ARM9>::CpuSet();
+	case 0xE: return HLE<_ARM9>::crc16();
 	case 0x12: return HLE<_ARM9>::LZ77UnCompVram();
 	}
 	logging<_ARM9>::logf("Unhandled SWI %08X called", idx);
@@ -754,109 +771,6 @@ void FASTCALL_IMPL(HLE<_ARM7>::swi(unsigned long idx))
 	}
 	logging<_ARM7>::logf("Unhandled SWI %08X called", idx);
 	DebugBreak_();
-}
-
-
-
-template <>
-void FASTCALL_IMPL(HLE<_ARM7>::debug_magic(unsigned long addr))
-{
-	unsigned short magic, flags;
-	memory_block *b;
-	if (addr & 1)
-	{
-		// thumb mode
-		addr++; // skip branch
-		// try reading a word
-		b = memory_map<T>::addr2page(addr);
-		if (b->flags & (memory_block::PAGE_INVALID | memory_block::PAGE_READPROT))
-			return;
-		magic = *(unsigned short*)(&b->mem[addr & (PAGING::ADDRESS_MASK & (~1))]);
-		addr += 2;
-		b = memory_map<T>::addr2page(addr);
-		if (b->flags & (memory_block::PAGE_INVALID | memory_block::PAGE_READPROT))
-			return;
-		flags = *(unsigned short*)(&b->mem[addr & (PAGING::ADDRESS_MASK & (~1))]);
-	} else
-	{
-		// arm mode
-		addr += 4; // skip branch
-
-		// must be 4b aligned so read magic + flags
-		b = memory_map<T>::addr2page(addr);
-		if (b->flags & (memory_block::PAGE_INVALID | memory_block::PAGE_READPROT))
-			return;
-		magic = *(unsigned short*)(&b->mem[addr & (PAGING::ADDRESS_MASK & (~1))]);
-		addr += 2;
-		flags = *(unsigned short*)(&b->mem[addr & (PAGING::ADDRESS_MASK & (~1))]);
-	}
-	addr += 2;
-	switch (magic)
-	{
-	case NOCASH_DEBUGOUT:
-		// stream till terminating 0 or max 4kb
-		{
-			stream_debugstring::context ctx;
-			ctx.pos = 0;
-			ctx.running = true;
-			// pull the string
-			memory_map<T>::process_memory<stream_debugstring>( 
-				addr, stream_debugstring::MAX_LEN, ctx );
-			logging<T>::log(ctx.string);
-		}
-		break;
-	case NOCASH_EXT_HALT:
-		// break
-		if (last_halt != addr)
-		{
-			last_halt = addr;
-			logging<T>::logf("Emulator Software Breakpoint at %08X", addr);
-				
-			runner<T>::skip_instructions = 1;
-			DebugBreak_();
-			/*
-			__try {
-				DebugTrap_();
-			}  __except(1)
-			{
-				std::cout << "Break!\n";
-			}*/
-		}
-		break;
-	case NOCASH_EXT_VERS:
-		// TODO: handle CPU mode
-		processor<T>::ctx().regs[0] = NDSE_VERSION;
-		break;
-	case NOCASH_EXT_SCRI:
-		{
-			// TODO: handle CPU mode
-			//unsigned long addr = processor<T>::ctx().regs[0];
-			//unsigned long size = processor<T>::ctx().regs[1];
-			unsigned long script = processor<T>::ctx().regs[2];
-				
-			stream_debugstring::context ctx;
-			ctx.pos = 0;
-			ctx.running = true;
-			// pull the string
-			memory_map<T>::process_memory<stream_debugstring>( 
-				script, stream_debugstring::MAX_LEN, ctx );
-			// try to evaluate the string
-			// this feature is not available yet!
-
-			logging<T>::log("Hostcalls are not supported yet");
-
-			processor<T>::ctx().regs[0] = 0;
-			break;
-		}
-	case NOCASH_EXT_RTSC:
-		{
-			// TODO: handle CPU mode
-			processor<T>::ctx().regs[0] = ((readtsc_fun)&read_tsc)();
-			break;
-		}
-	default:
-		logging<T>::logf("Unknown Debug Magic at %08X (%04X %04X)", addr, magic, flags);
-	}
 }
 
 
