@@ -1,0 +1,31 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<VisualStudioToolFile
+	Name="Doxygen"
+	Version="8.00"
+	>
+	<Rules>
+		<CustomBuildRule
+			Name="DoxygenCollect"
+			DisplayName="Doxygen collector"
+			CommandLine="echo Doxygen on $(InputPath) &gt;&gt; $(IntDir)/doxy.tmp"
+			Outputs="$(IntDir)/doxy.tmp"
+			FileExtensions="*.h"
+			ExecutionDescription="Doxygen - changed file $(InputPath)"
+			>
+			<Properties>
+			</Properties>
+		</CustomBuildRule>
+		<CustomBuildRule
+			Name="Doxygen"
+			DisplayName="Doxygen"
+			CommandLine="doxygen $(InputPath) &gt;$(IntDir)/doxy.log"
+			Outputs="$(IntDir)/doxy.log"
+			AdditionalDependencies="$(IntDir)/doxy.tmp"
+			FileExtensions="*.dox"
+			ExecutionDescription="Doxygen"
+			>
+			<Properties>
+			</Properties>
+		</CustomBuildRule>
+	</Rules>
+</VisualStudioToolFile>

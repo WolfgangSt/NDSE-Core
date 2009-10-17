@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 10.00
 # Visual Studio 2008
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "NDSE", "NDSE.vcproj", "{5DBE56CF-E953-40E1-9986-BAAB7694B8C8}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "NDSE-Core", "NDSE.vcproj", "{5DBE56CF-E953-40E1-9986-BAAB7694B8C8}"
 	ProjectSection(ProjectDependencies) = postProject
 		{1F6C9A28-676D-4257-8E17-0F22C5E82F4D} = {1F6C9A28-676D-4257-8E17-0F22C5E82F4D}
 		{307A5D8E-6395-4788-803F-3B9BC1B5FFD5} = {307A5D8E-6395-4788-803F-3B9BC1B5FFD5}
@@ -16,6 +16,8 @@ EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "libelf", "..\libdwarf\libelf\VC\libelf.vcproj", "{1F6C9A28-676D-4257-8E17-0F22C5E82F4D}"
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "libdistorm", "..\distorm64\VC\libdistorm.vcproj", "{07F372BA-2F6E-43DB-84B2-8260AB21AED0}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Documentation", "Documentation.vcproj", "{A8E35CC5-5149-443D-86BF-2309D2590276}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -39,6 +41,10 @@ Global
 		{07F372BA-2F6E-43DB-84B2-8260AB21AED0}.Debug|Win32.Build.0 = Debug|Win32
 		{07F372BA-2F6E-43DB-84B2-8260AB21AED0}.Release|Win32.ActiveCfg = Release|Win32
 		{07F372BA-2F6E-43DB-84B2-8260AB21AED0}.Release|Win32.Build.0 = Release|Win32
+		{A8E35CC5-5149-443D-86BF-2309D2590276}.Debug|Win32.ActiveCfg = Debug|Win32
+		{A8E35CC5-5149-443D-86BF-2309D2590276}.Debug|Win32.Build.0 = Debug|Win32
+		{A8E35CC5-5149-443D-86BF-2309D2590276}.Release|Win32.ActiveCfg = Release|Win32
+		{A8E35CC5-5149-443D-86BF-2309D2590276}.Release|Win32.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

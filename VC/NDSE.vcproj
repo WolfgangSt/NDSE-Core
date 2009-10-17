@@ -2,7 +2,7 @@
 <VisualStudioProject
 	ProjectType="Visual C++"
 	Version="9.00"
-	Name="NDSE"
+	Name="NDSE-Core"
 	ProjectGUID="{5DBE56CF-E953-40E1-9986-BAAB7694B8C8}"
 	RootNamespace="NDSE"
 	Keyword="Win32Proj"
@@ -383,10 +383,6 @@
 			>
 			<File
 				RelativePath="..\Core\ArmContext.h"
-				>
-			</File>
-			<File
-				RelativePath="..\Core\BIOS.h"
 				>
 			</File>
 			<File

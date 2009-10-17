@@ -1,5 +1,8 @@
 Release
 Debug
 NDSE.vcproj.*
+Documentation.vcproj.*
+html
+latex
 *.suo
 *.ncb
