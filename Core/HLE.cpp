@@ -815,6 +815,11 @@ symbols::symmap symbols::syms;
 
 void symbols::init()
 {
+	// temporarily: they are just here to instanciate crc16_direct
+	// for some reason gcc fails to do this automatically!
+	syms[(void*)HLE<_ARM7>::crc16_direct]              = "arm7::util::crc16_direct";
+	syms[(void*)HLE<_ARM9>::crc16_direct]              = "arm9::util::crc16_direct";
+
 	syms[(void*)HLE<_ARM9>::load32]                    = "arm9::mem::load32";
 	syms[(void*)HLE<_ARM9>::load16u]                   = "arm9::mem::load16u";
 	syms[(void*)HLE<_ARM9>::load16s]                   = "arm9::mem::load16s";
