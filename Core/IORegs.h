@@ -5,9 +5,8 @@
 //#include <boost/smart_ptr/detail/spinlock.hpp>
 #include <boost/thread/mutex.hpp>
 
-#include "forward.h"
+#include "basetypes.h"
 #include "fifo.h"
-#include "NDSE.h" // for io_callback
 #include "MemRegion.h"
 
 struct ioregs

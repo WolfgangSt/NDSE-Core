@@ -2,6 +2,7 @@
 #define _VRAM_H_
 
 #include "forward.h"
+#include "MemMap.h"
 
 struct vram
 {

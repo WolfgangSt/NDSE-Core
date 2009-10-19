@@ -6,6 +6,10 @@
 
 #include <sys/types.h>
 
+////////////////////////////////////////////////////////////////////////////////
+// This should be refactored to more portable code using atomar reads rather
+// than reading structs ...
+
 #ifdef WIN32
 #include <io.h>
 #define read _read
@@ -22,8 +26,14 @@ struct card_rom_region
 	unsigned long length;
 };
 
+#ifdef WIN32
+#define PACKED
 #include <pshpack1.h>
-struct ndsheader_main
+#else
+#define PACKED __attribute__ ((packed))
+#endif
+
+struct PACKED ndsheader_main
 {
 	char game_name[12];
 	unsigned long game_code;
@@ -64,7 +74,7 @@ struct ndsheader_main
 	unsigned short nintendo_logo_crc16;
 };
 
-struct ndsheader_sub
+struct PACKED ndsheader_sub
 {
 	unsigned short header_crc16;
 
@@ -76,13 +86,15 @@ struct ndsheader_sub
 
 };
 
-struct ndsheader
+struct PACKED ndsheader
 {
 	ndsheader_main main;
 	ndsheader_sub sub;
 };
-#include <poppack.h>
 
+#ifdef WIN32
+#include <poppack.h>
+#endif
 
 struct max_size
 {

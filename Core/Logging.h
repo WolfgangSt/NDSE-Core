@@ -4,7 +4,7 @@
 #include <stdio.h>
 #include <stdarg.h>
 #include <iostream>
-#include "NDSE.h"
+#include "basetypes.h"
 
 template <typename T>
 class logging

@@ -1,12 +1,12 @@
 CC =		g++
 AR =		ar
 #ARFLAGS =	@ARFLAGS@
-INCLUDES =	-I. -I../itl/itl/src -I../distorm64 -I../libdwarf/libelf -I../libdwarf/libdwarf
-CFLAGS = -fPIC -g -O2 -fvisibility=hidden $(INCLUDES) -DNDSE -DEXPORT
+INCLUDES =	-I. -I../itl/itl/src -I../distorm64 -I../libdwarf/libelf/lib -I../libdwarf
+CFLAGS = -fPIC -g -O2 -fvisibility=hidden $(INCLUDES) -DNDSE -DEXPORT -D__LIBELF_INTERNAL__
 LDFLAGS =
 
 SRCS=Breakpoint.cpp Compiler.cpp Disassembler.cpp HLE.cpp \
- 	Interrupt.cpp io_observe.cpp loader_elf.cpp loader_nds.cpp \
+ 	loader_elf.cpp loader_nds.cpp \
  	Mem.cpp NDSE.cpp PhysMem.cpp Util.cpp runner.cpp SourceDebug.cpp \
 	signal2/nixsig.cpp
 OBJS	:=	$(SRCS:.cpp=.o)

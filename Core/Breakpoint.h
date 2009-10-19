@@ -8,6 +8,8 @@
 #include "forward.h"
 #include "BreakpointBase.h"
 #include "MemMap.h"
+#include "SourceDebug.h"
+#include "jitcode.h"
 
 // when memory fragmentation ever gets a problem use pool allocators
 // for break_data and all the maps! 
@@ -132,7 +134,7 @@ private:
 
 		// need to patch
 		{
-			boost::mutex::scoped_lock g(breakpoints_base::dt_lock);
+			boost::mutex::scoped_lock g(breakpoints_base<T>::dt_lock);
 			breakpoints_base<T>::dt[bi.pos] = &bi;
 		}
 		*bi.pos = DEBUG_BREAK;
@@ -149,7 +151,7 @@ private:
 		*bi.pos = bi.original_byte;
 		bi.patched = false;
 		{
-			boost::mutex::scoped_lock g(breakpoints_base::dt_lock);
+			boost::mutex::scoped_lock g(breakpoints_base<T>::dt_lock);
 			breakpoints_base<T>::dt.erase( bi.pos );
 		}
 	}
@@ -160,7 +162,7 @@ private:
 	{
 		if (bi.patched)
 		{
-			boost::mutex::scoped_lock g(breakpoints_base::dt_lock);
+			boost::mutex::scoped_lock g(breakpoints_base<T>::dt_lock);
 			breakpoints_base<T>::dt.erase(bi.pos);
 		}
 		bi.pos = 0;

@@ -1,3 +1,4 @@
+#include "vram.h"
 #include "PhysMem.h"
 #include "MemMap.h"
 

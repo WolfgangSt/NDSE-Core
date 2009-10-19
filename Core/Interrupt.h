@@ -2,6 +2,10 @@
 #define _INTERRUPT_H_
 
 #include "forward.h"
+#include "PhysMem.h"
+#include "ArmContext.h"
+#include "Processor.h"
+#include "HLE.h"
 
 // current approach:
 //

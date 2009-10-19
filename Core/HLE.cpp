@@ -1,17 +1,14 @@
-#pragma warning(disable: 4244)
-
-#include "Logging.h"
-#include "Mem.h" // for namespaces _ARM
-#include "MemMap.h"
-#include "Compiler.h"
-#include "Processor.h"
-#include "PhysMem.h"
-#include "lz77.h"
-#include "runner.h"
-#include "HLE.h"
-#include "Interrupt.h"
-
 #include <boost/thread.hpp>
+#include "basetypes.h"
+#include "HLE.h"
+#include "CPUMode.h"
+#include "ArmContext.h"
+#include "CompiledBlock.h"
+#include "Processor.h"
+#include "lz77.h"
+#include "Util.h"
+#include "runner.h"
+#include "Interrupt.h"
 
 // TODO: could give the compiler hints about the
 // b->flags & memory_block::PAGE_ACCESSHANDLER
@@ -33,6 +30,47 @@ void DEBUG_STORE(unsigned long addr, unsigned long sz)
 #else
 #define DEBUG_STORE(addr,sz)
 #endif
+
+template <>
+void FASTCALL_IMPL(HLE<_ARM7>::remap_tcm(unsigned long /*value*/, unsigned long /*mode*/))
+{
+	logging<_ARM7>::logf("Invalid TCM command (ARM7?)");
+	DebugBreak_();
+}
+
+
+template <>
+void FASTCALL_IMPL(HLE<_ARM9>::remap_tcm(unsigned long value, unsigned long mode))
+{
+	int shift = (value >> 1) & 0x1F;
+
+	unsigned long base = value & 0xFFFFF000;
+	unsigned long size = 512 << shift;
+	unsigned long end  = base + size;
+
+	switch (mode)
+	{
+	case 0: // data tcm
+		logging<_ARM9>::logf("Mapping DTCM to [%08X-%08X)", base, end);
+		memory_map<_ARM9>::unmap( &memory::data_tcm );
+		memory_map<_ARM9>::map_region( &memory::data_tcm, PAGING::REGION(base, end) );
+		break;
+	case 1: // instruction tcm
+		if (base != 0)
+		{
+			logging<_ARM9>::logf("ITCM base specified as %08X, must be 0!", base);
+			DebugBreak_();
+		}
+		logging<_ARM9>::logf("Mapping ITCM to [%08X-%08X)", base, end);
+		memory_map<_ARM9>::unmap( &memory::inst_tcm );
+		memory_map<_ARM9>::map_region( &memory::inst_tcm, PAGING::REGION(base, end) );
+		break;
+	default:
+		logging<_ARM9>::logf("Invalid TCM command");
+		DebugBreak_();
+	}
+}
+
 
 template <typename T>
 void HLE<T>::invalid_read(unsigned long addr)
@@ -642,7 +680,7 @@ template <typename T> unsigned short HLE<T>::crc16_direct(unsigned short crc, un
 {
 	stream_crc16::context ctx;
 	ctx.crc = crc;
-	memory_map<T>::process_memory<stream_crc16>( addr, len, ctx );
+	memory_map<T>::template process_memory<stream_crc16>( addr, len, ctx );
 	processor<T>::ctx().regs[0] = ctx.crc;
 	return ctx.crc;
 }
@@ -655,25 +693,6 @@ template <typename T> void HLE<T>::crc16()
 	logging<T>::logf("SWI Eh [crc16] called");
 
 	// TODO: handle CPU mode
-	/*
-	stream_crc16::context ctx;
-	ctx.crc  = processor<T>::ctx().regs[0];
-	unsigned long addr = processor<T>::ctx().regs[1];
-	unsigned long len  = processor<T>::ctx().regs[2];
-	if (addr & 1)
-	{
-		logging<T>::logf("Address not aligned: %08X", addr);
-		DebugBreak_();
-	}
-	if (len & 1)
-	{
-		logging<T>::logf("Length aligned: %08X", len);
-		DebugBreak_();
-	}
-	memory_map<T>::process_memory<stream_crc16>( addr, len, ctx );
-	processor<T>::ctx().regs[0] = ctx.crc;
-	*/
-
 	processor<T>::ctx().regs[0] = crc16_direct( 
 		processor<T>::ctx().regs[0], 
 		processor<T>::ctx().regs[1],
@@ -785,46 +804,6 @@ ARM9:[0x027FF000-0x02800000) (???)
 ARM9:[0x02800000-0x02BE0000) (RAM image)
 
 */
-
-template <>
-void FASTCALL_IMPL(HLE<_ARM7>::remap_tcm(unsigned long /*value*/, unsigned long /*mode*/))
-{
-	logging<_ARM7>::logf("Invalid TCM command (ARM7?)");
-	DebugBreak_();
-}
-
-
-template <>
-void FASTCALL_IMPL(HLE<_ARM9>::remap_tcm(unsigned long value, unsigned long mode))
-{
-	int shift = (value >> 1) & 0x1F;
-
-	unsigned long base = value & 0xFFFFF000;
-	unsigned long size = 512 << shift;
-	unsigned long end  = base + size;
-
-	switch (mode)
-	{
-	case 0: // data tcm
-		logging<_ARM9>::logf("Mapping DTCM to [%08X-%08X)", base, end);
-		memory_map<_ARM9>::unmap( &memory::data_tcm );
-		memory_map<_ARM9>::map_region( &memory::data_tcm, PAGING::REGION(base, end) );
-		break;
-	case 1: // instruction tcm
-		if (base != 0)
-		{
-			logging<_ARM9>::logf("ITCM base specified as %08X, must be 0!", base);
-			DebugBreak_();
-		}
-		logging<_ARM9>::logf("Mapping ITCM to [%08X-%08X)", base, end);
-		memory_map<_ARM9>::unmap( &memory::inst_tcm );
-		memory_map<_ARM9>::map_region( &memory::inst_tcm, PAGING::REGION(base, end) );
-		break;
-	default:
-		logging<_ARM9>::logf("Invalid TCM command");
-		DebugBreak_();
-	}
-}
 
 
 ////////////////////////////////////////////////////////////////////////////////

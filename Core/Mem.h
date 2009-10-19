@@ -8,6 +8,7 @@
 // used to synchronize memory updates
 #ifdef __GNUC__
 #define _InterlockedOr(p,v) __sync_fetch_and_or(p, v)
+#define _InterlockedExchange(p,v) __sync_lock_test_and_set(p, v)
 //#define _InterlockedOr(p,v) (*p |= v)
 #else
 #include <intrin.h>

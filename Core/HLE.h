@@ -3,9 +3,10 @@
 
 #include <map>
 #include "forward.h"
+#include "MemMap.h"
 #include "runner.h"
 #include "Processor.h"
-#include "Mem.h"
+#include "ArmContext.h"
 
 #ifdef WIN32
 #define FASTCALL(x) __fastcall x
@@ -167,7 +168,7 @@ void FASTCALL_IMPL(HLE<T>::debug_magic(unsigned long addr))
 			ctx.pos = 0;
 			ctx.running = true;
 			// pull the string
-			memory_map<T>::process_memory<stream_debugstring>( 
+			memory_map<T>::template process_memory<stream_debugstring>( 
 				addr, stream_debugstring::MAX_LEN, ctx );
 			logging<T>::log(ctx.string);
 		}
@@ -198,7 +199,7 @@ void FASTCALL_IMPL(HLE<T>::debug_magic(unsigned long addr))
 			ctx.pos = 0;
 			ctx.running = true;
 			// pull the string
-			memory_map<T>::process_memory<stream_debugstring>( 
+			memory_map<T>::template process_memory<stream_debugstring>( 
 				script, stream_debugstring::MAX_LEN, ctx );
 			// try to evaluate the string
 			// this feature is not available yet!
@@ -218,7 +219,6 @@ void FASTCALL_IMPL(HLE<T>::debug_magic(unsigned long addr))
 		logging<T>::logf("Unknown Debug Magic at %08X (%04X %04X)", addr, magic, flags);
 	}
 }
-
 
 struct symbols
 {

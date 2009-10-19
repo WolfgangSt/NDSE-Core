@@ -12,6 +12,7 @@
 #include <list>
 #include "forward.h"
 #include "Disassembler.h"
+#include "Mem.h"
 
 #ifdef HLE_CORE
 #include "HLCore.h"
@@ -34,6 +35,8 @@ inline void DebugBreak_()
 	asm(".byte " TOSTRING(D_DEBUG_BREAK) );
 #endif
 }
+
+// static unsigned long FASTCALL(load32(unsigned long addr));
 
 class compiler
 {
@@ -131,6 +134,14 @@ private:
 	void* swi;
 	void* debug_magic;
 
+	template <typename T> void* FUNC2PTR(T p)
+	{
+		// probably not on x86 protected mode if this aint true
+		assert(sizeof(p) == sizeof(void*));
+		return (void*)p;
+	}
+
+
 public:
 	template <typename U> void init_mode()
 	{
@@ -144,28 +155,28 @@ public:
 			hlc_funcs[i] = HLCore<T>::funcs[i];
 		hlc_checkflags = HLCore<T>::check_flags;
 #endif
-		store32 = HLE<T>::store32;
-		store16 = HLE<T>::store16;
-		store8 = HLE<T>::store8;
-		store32_array = HLE<T>::store32_array;
+		store32 = FUNC2PTR(HLE<T>::store32);
+		store16 = FUNC2PTR(HLE<T>::store16);
+		store8 = FUNC2PTR(HLE<T>::store8);
+		store32_array = FUNC2PTR(HLE<T>::store32_array);
 
-		load32 = HLE<T>::load32;
-		load16u = HLE<T>::load16u;
-		load16s = HLE<T>::load16s;
-		load8u = HLE<T>::load8u;
-		load32_array = HLE<T>::load32_array;
+		load32 = FUNC2PTR(HLE<T>::load32);
+		load16u = FUNC2PTR(HLE<T>::load16u);
+		load16s = FUNC2PTR(HLE<T>::load16s);
+		load8u = FUNC2PTR(HLE<T>::load8u);
+		load32_array = FUNC2PTR(HLE<T>::load32_array);
 
-		loadcpsr = HLE<T>::loadcpsr;
-		storecpsr = HLE<T>::storecpsr;
+		loadcpsr = FUNC2PTR(HLE<T>::loadcpsr);
+		storecpsr = FUNC2PTR(HLE<T>::storecpsr);
 
-		pushcallstack = HLE<T>::pushcallstack;
-		popcallstack = HLE<T>::popcallstack;
+		pushcallstack = FUNC2PTR(HLE<T>::pushcallstack);
+		popcallstack = FUNC2PTR(HLE<T>::popcallstack);
 
-		compile_and_link_branch_a = HLE<T>::compile_and_link_branch_a;
-		remap_tcm = HLE<T>::remap_tcm;
-		is_priviledged = HLE<T>::is_priviledged;
-		swi = HLE<T>::swi;
-		debug_magic = HLE<T>::debug_magic;
+		compile_and_link_branch_a = FUNC2PTR(HLE<T>::compile_and_link_branch_a);
+		remap_tcm = FUNC2PTR(HLE<T>::remap_tcm);
+		is_priviledged = FUNC2PTR(HLE<T>::is_priviledged);
+		swi = FUNC2PTR(HLE<T>::swi);
+		debug_magic = FUNC2PTR(HLE<T>::debug_magic);
 	}
 
 

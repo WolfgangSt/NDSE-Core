@@ -4,6 +4,9 @@
 // instances of compiled_block could be pool allocated
 // if vmem fragmentation should stay lower
 
+#include <cstring>
+#include "Mem.h"
+
 template <typename T>
 struct compiled_block_base
 {

@@ -32,7 +32,7 @@
 #include "NDSE.h"
 #include "osdep.h"
 #include "runner.h"
-#include "interrupt.h"
+#include "Interrupt.h"
 #include "vram.h"
 
 

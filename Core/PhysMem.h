@@ -1,9 +1,9 @@
 #ifndef _PHYSMEM_H_
 #define _PHYSMEM_H_
 
-#include "MemRegion.h"
+#include "forward.h"
+#include "Mem.h"
 #include "IORegs.h"
-#include "vram.h"
 
 // physical memory
 struct memory 

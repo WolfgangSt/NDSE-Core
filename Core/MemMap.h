@@ -10,9 +10,11 @@
 #include <itl/split_interval_map.hpp>
 
 #include "forward.h"
+#include "PhysMem.h"
 #include "MemRegionBase.h"
 #include "Logging.h"
 #include "Compiler.h" // for DebugBreak()_
+#include "MemRegion.h"
 
 // information for a mapped interval
 // accumulates all overlapping memory_regions for its interval
@@ -67,7 +69,7 @@ struct region_entry
 	}
 };
 
-#include "PhysMem.h"
+
 
 
 // a memory mapping table used by the processors to access memory

@@ -1,6 +1,7 @@
 #ifndef _MEMREGIONBASE_H_
 #define _MEMREGIONBASE_H_
 
+#include <assert.h>
 #include <cstring> // for size_t
 #include "Mem.h"
 

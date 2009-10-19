@@ -1,15 +1,68 @@
 #include "nixsig.h"
 #include <signal.h>
-#include <QThread>
-#include <QSemaphore>
+#include <pthread.h>
+#include <boost/thread.hpp>
 #include "../osdep.h"
 
-class NixFiber: public Fiber, public QThread
+// boost thread is not flexible enough for our needs
+// thus for now this is based on pthreads
+
+
+
+class PThread
+{
+private:
+	pthread_t thread;
+	pthread_attr_t attr;
+
+	size_t threadsize;
+
+	static void *run_(void *thisptr)
+	{ 
+		((PThread*)thisptr)->run();
+	}
+
+public:
+	enum Priority { 
+		IdlePriority, 
+		LowestPriority, 
+		LowPriority,
+		NormalPriority,
+		HighPriority,
+		HighestPriority,
+		TimeCriticalPriority,
+		InheritPriority
+	};
+
+	PThread()
+	{
+		pthread_attr_init( &attr );
+	}
+
+	void start(Priority priority = InheritPriority)
+	{
+		pthread_create(&thread, &attr, run_, this);
+	}
+
+	~PThread()
+	{
+		pthread_cancel(thread);
+	}
+
+	void setStackSize (unsigned int stackSize)
+	{
+		pthread_attr_setstacksize(&attr, stackSize);
+	}
+
+	virtual void run() = 0;
+};
+
+class NixFiber: public Fiber, PThread
 {
 private:
 	fiber_cb *cb;
 	static __thread NixFiber* instance;
-	QSemaphore cont;
+	boost::mutex cont;
 
 	static void handler(int sig, siginfo_t *info, void *ctx)
 	{
@@ -29,7 +82,7 @@ private:
 	void do_callback()
 	{
 		cb(this);
-		cont.acquire();
+		cont.lock();
 	}
 
 	void handle(int sig)
@@ -47,6 +100,7 @@ private:
 	{
 		// entry point for the thread
 		instance = this;
+		cont.lock();
 		handle(SIGSEGV);
 		handle(SIGINT);
 		handle(SIGILL);	
@@ -66,7 +120,7 @@ public:
 
 	void do_continue()
 	{
-		cont.release();
+		cont.unlock();
 	}
 };
 

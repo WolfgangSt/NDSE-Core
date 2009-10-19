@@ -4,6 +4,9 @@
 #include "forward.h"
 #include "osdep.h"          // for Fiber
 #include "BreakpointBase.h" // for breakpoint_defs
+#include "Compiler.h"       // for compiled_block
+#include "SourceDebug.h"    // for source_set
+#include "CompiledBlock.h"
 
 #ifndef WIN32
 #define UlongToPtr(l) (void*)l

@@ -1,7 +1,7 @@
 #ifndef _PROCESSOR_H_
 #define _PROCESSOR_H_
 
-#include "ArmContext.h"
+#include "MemMap.h"
 #include "CPUMode.h"
 
 template<typename T> class processor
@@ -70,7 +70,7 @@ public:
 };
 
 template<typename T> emulation_context processor<T>::context[CPU_MAX_MODES];
-template<typename T> typename cpu_mode processor<T>::mode = CPU_USER;
+template<typename T> cpu_mode processor<T>::mode = CPU_USER;
 template<typename T> emulation_context* processor<T>::pcontext = 
 	&processor<T>::context[processor<T>::mode]; // should be in sync with ebp
 template<typename T> memory_block* processor<T>::last_page;
