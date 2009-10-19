@@ -75,7 +75,7 @@ void STDCALL Init()
 	//io_observer::init();
 
 	InitHLE();
-	InitHLCore();
+	//InitHLCore();
 }
 
 unsigned long STDCALL PageSize()
