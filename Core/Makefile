@@ -6,8 +6,9 @@ CFLAGS = -fPIC -g -O2 -fvisibility=hidden $(INCLUDES) -DNDSE -DEXPORT -D__LIBELF
 LDFLAGS =
 
 SRCS=Breakpoint.cpp Compiler.cpp Disassembler.cpp HLE.cpp \
- 	loader_elf.cpp loader_nds.cpp \
+ 	loader_elf.cpp loader_nds.cpp loader_raw.cpp vram.cpp \
  	Mem.cpp NDSE.cpp PhysMem.cpp Util.cpp runner.cpp SourceDebug.cpp \
+	IORegs.cpp dma.cpp \
 	signal2/nixsig.cpp
 OBJS	:=	$(SRCS:.cpp=.o)
 
