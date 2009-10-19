@@ -43,7 +43,7 @@ public:
 	hle_block()
 	{
 		static char retcode = '\xC3';
-		mprotect(&retcode, 1, PROT_READ | PROT_WRITE | PROT_EXEC);
+		mprotect2(&retcode, 1, PROT_READ | PROT_WRITE | PROT_EXEC);
 		compiled_block<T>::code = &retcode;
 		compiled_block<T>::code_size = 1;
 		for (int i = 0; i < compiled_block<T>::REMAPS; i++)

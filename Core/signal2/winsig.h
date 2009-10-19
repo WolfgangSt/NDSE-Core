@@ -29,6 +29,7 @@ typedef struct __ucontext {
 #define PROT_WRITE 2
 #define PROT_EXEC 4
 int mprotect(const void *addr, size_t len, int prot);
+#define mprotect2 mprotect
 
 // #include <asm/cachectl.h>
 

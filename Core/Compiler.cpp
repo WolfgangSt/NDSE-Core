@@ -2221,7 +2221,7 @@ void compiler::epilogue(char *&mem, size_t &size)
 
 	size = s.tellp();
 	mem = new char[size];
-	if (mprotect( mem, size, PROT_READ | PROT_WRITE | PROT_EXEC ) != 0)
+	if (mprotect2( mem, size, PROT_READ | PROT_WRITE | PROT_EXEC ) != 0)
 		logging<_DEFAULT>::log("Failed to adjust JIT memory to executable");
 
 #pragma warning(push)

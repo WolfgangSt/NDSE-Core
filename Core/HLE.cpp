@@ -416,7 +416,7 @@ static emulation_context __context_helper; // temporary for OFFSET calculation
 
 static void prepare_stub(char *addr, size_t sz)
 {
-	if (mprotect( addr, sz, PROT_READ | PROT_WRITE | PROT_EXEC ) != 0)
+	if (mprotect2( addr, sz, PROT_READ | PROT_WRITE | PROT_EXEC ) != 0)
 		logging<_DEFAULT>::log("Failed to adjust JIT memory to executable");
 	cacheflush( addr, (int)sz, ICACHE );
 }
