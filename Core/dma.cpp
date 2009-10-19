@@ -1,6 +1,7 @@
 #include "dma.h"
 #include "Logging.h"
 #include "MemMap.h"
+#include "HLE.h"
 
 void start_dma(unsigned long *base)
 {

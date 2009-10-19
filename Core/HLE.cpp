@@ -1,4 +1,6 @@
+#define NOMINMAX
 #include <boost/thread.hpp>
+#include <algorithm>
 #include "basetypes.h"
 #include "HLE.h"
 #include "CPUMode.h"
@@ -672,7 +674,7 @@ struct stream_crc16
 			logging<_DEFAULT>::logf("Invalid page accessed during crc16 swi");
 			DebugBreak_();
 		}
-		ctx.crc = util::get_crc16(ctx.crc, mem, sz);
+		ctx.crc = util::get_crc16((unsigned short)ctx.crc, mem, sz);
 	}
 };
 
@@ -682,7 +684,7 @@ template <typename T> unsigned short HLE<T>::crc16_direct(unsigned short crc, un
 	ctx.crc = crc;
 	memory_map<T>::template process_memory<stream_crc16>( addr, len, ctx );
 	processor<T>::ctx().regs[0] = ctx.crc;
-	return ctx.crc;
+	return (unsigned short)ctx.crc;
 }
 
 template <typename T> void HLE<T>::crc16()
@@ -694,7 +696,7 @@ template <typename T> void HLE<T>::crc16()
 
 	// TODO: handle CPU mode
 	processor<T>::ctx().regs[0] = crc16_direct( 
-		processor<T>::ctx().regs[0], 
+		(unsigned short)processor<T>::ctx().regs[0], 
 		processor<T>::ctx().regs[1],
 		processor<T>::ctx().regs[2]);
 }
