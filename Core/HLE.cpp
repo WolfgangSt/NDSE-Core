@@ -416,7 +416,7 @@ static emulation_context __context_helper; // temporary for OFFSET calculation
 
 static void prepare_stub(char *addr, size_t sz)
 {
-	if (mprotect( addr, sz, PROT_READ | PROT_WRITE | PROT_EXEC ) != 0)
+	if (mprotect2( addr, sz, PROT_READ | PROT_WRITE | PROT_EXEC ) != 0)
 		logging<_DEFAULT>::log("Failed to adjust JIT memory to executable");
 	cacheflush( addr, (int)sz, ICACHE );
 }
@@ -821,6 +821,11 @@ symbols::symmap symbols::syms;
 
 void symbols::init()
 {
+	// temporarily: they are just here to instanciate crc16_direct
+	// for some reason gcc fails to do this automatically!
+	syms[(void*)HLE<_ARM7>::crc16_direct]              = "arm7::util::crc16_direct";
+	syms[(void*)HLE<_ARM9>::crc16_direct]              = "arm9::util::crc16_direct";
+
 	syms[(void*)HLE<_ARM9>::load32]                    = "arm9::mem::load32";
 	syms[(void*)HLE<_ARM9>::load16u]                   = "arm9::mem::load16u";
 	syms[(void*)HLE<_ARM9>::load16s]                   = "arm9::mem::load16s";

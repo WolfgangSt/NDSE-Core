@@ -8,7 +8,7 @@ clean::
 	rm -f libNDSE.so*
 	rm -f libNDSE
 
-NDSE-Core : libdistorm libdwarf
+libNDSE : libdistorm libdwarf
 	cd $(PROJECT_DIR_NDSECORE)/../Core && make
 	cp $(PROJECT_DIR_NDSECORE)/../Core/libNDSE.so* .
 	cd $(PROJECT_DIR_NDSECORE)/../Core && make -i clean

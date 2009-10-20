@@ -132,6 +132,18 @@ Fiber* Fiber::create(size_t stacksize, fiber_cb cb)
 	return new NixFiber(stacksize, cb);
 }
 
+int mprotect2(const void *addr, size_t len, int prot)
+{
+	// align addresses
+	char *c = (char*)addr;
+	static long int pagesize = sysconf(_SC_PAGESIZE);
+	long int addend = (c - (char*)0) % pagesize;
+	c -= addend;
+	len += addend + pagesize - 1;
+	len %= pagesize;
+	return mprotect(c, len, prot);
+}
+
 
 
 

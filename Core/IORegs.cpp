@@ -133,7 +133,7 @@ static const char* NONAME_NOLOG = "^NoName";
 	names[offset+3] = name
 
 REGISTERS9_1::REGISTERS9_1( const char *name, unsigned long color, unsigned long priority )
-	: memory_region(name, color, priority)
+	: memory_region< PAGING::KB<8> >(name, color, priority)
 {
 	for (int i = 0; i < PAGES; i++)
 		blocks[i].flags |= memory_block::PAGE_ACCESSHANDLER;
@@ -417,7 +417,7 @@ void REGISTERS9_1::load32_array(unsigned long addr, int /*num*/, unsigned long *
 ////////////////////////////////////////////////////////////////////////////////
 
 REGISTERS7_1::REGISTERS7_1( const char *name, unsigned long color, unsigned long priority )
-	: memory_region(name, color, priority)
+	: memory_region< PAGING::KB<8> >(name, color, priority)
 {
 	for (int i = 0; i < PAGES; i++)
 		blocks[i].flags |= memory_block::PAGE_ACCESSHANDLER;
@@ -762,7 +762,7 @@ void REGISTERS7_1::load32_array(unsigned long addr, int /*num*/, unsigned long *
 ////////////////////////////////////////////////////////////////////////////////
 
 TRANSFER9::TRANSFER9( const char *name, unsigned long color, unsigned long priority )
-	: memory_region(name, color, priority)
+	: memory_region<PAGING>(name, color, priority)
 {
 	for (int i = 0; i < PAGES; i++)
 		blocks[i].flags |= memory_block::PAGE_ACCESSHANDLER;
@@ -828,7 +828,7 @@ void TRANSFER9::load32_array(unsigned long /*addr*/, int /*num*/, unsigned long 
 ////////////////////////////////////////////////////////////////////////////////
 
 TRANSFER7::TRANSFER7( const char *name, unsigned long color, unsigned long priority )
-	: memory_region(name, color, priority)
+	: memory_region<PAGING>(name, color, priority)
 {
 	for (int i = 0; i < PAGES; i++)
 		blocks[i].flags |= memory_block::PAGE_ACCESSHANDLER;

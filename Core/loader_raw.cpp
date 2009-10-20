@@ -12,9 +12,8 @@
 #define lseek _lseek
 #define open _open
 #define close _close
-// #define filelength _filelength
 #else
-#include <unistd.h>
+#include <sys/stat.h>
 #endif
 
 // raw files are always valid
@@ -45,7 +44,14 @@ struct stream_raw
 // load hint not needed as .nds contains both arm7 and arm9
 bool loader_raw::load(int fd, util::load_result &res, util::load_hint lh)
 {
-	long sz = filelength(fd);
+	long sz;
+#ifdef WIN32
+	sz = _filelength(fd);
+#else
+	struct stat fs;
+	fstat(fd, &fs);
+	sz = fs.st_size;
+#endif
 	switch (lh)
 	{
 	case util::LH_ARM9:
