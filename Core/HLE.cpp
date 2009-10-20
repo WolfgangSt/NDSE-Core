@@ -1,5 +1,6 @@
 #define NOMINMAX
 #include <boost/thread.hpp>
+#include <boost/timer.hpp>
 #include <algorithm>
 #include "basetypes.h"
 #include "HLE.h"
