@@ -728,8 +728,14 @@ private:
 public:
 	static void do_sleep(int ms)
 	{
-		boost::thread::sleep(delay(0, ms));
+		float secs = ms*0.001f;
+		boost::timer t;
+		do
+		{
+			yieldCurrentThread();
+		} while (t.elapsed() < secs);
 	}
+
 
 	static void yieldCurrentThread()
 	{
