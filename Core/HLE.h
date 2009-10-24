@@ -15,7 +15,7 @@
 #define FASTCALL_IMPL(x) FASTCALL(x)
 #define NAKEDCALL_IMPL(x) __declspec(naked) __fastcall x
 #else
-#define FASTCALL(x) x; __attribute__((fastcall))
+#define FASTCALL(x) x __attribute__((fastcall))
 #define FASTCALL_F(x) x __attribute__((fastcall))
 #define FASTCALL_G
 #define FASTCALL_IMPL(x) __attribute__((fastcall)) x

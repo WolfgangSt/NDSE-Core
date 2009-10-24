@@ -23,7 +23,14 @@
 #include <sys/mman.h>
 // #include <asm/cachectl.h>
 #define cacheflush(x,y,z) (0)
-#define _rotr(value, shift)(((unsigned long)value >> shift)|((unsigned long)value << (32-shift)))
+//#define _rotr(value, shift)(((unsigned long)value >> shift)|((unsigned long)value << (32-shift)))
+#define _rotr(value, shift) _rotr_inline(value, shift)
+
+inline unsigned long _rotr_inline (unsigned long value, unsigned long shift) __attribute__((always_inline));
+inline unsigned long _rotr_inline (unsigned long value, unsigned long shift)
+{
+	return (((unsigned long)value >> shift)|((unsigned long)value << (32-shift)));
+}
 
 // signal2 sets a signal handler for sig but only on the calling thread
 // posix needs to use pthread_sigmask here
