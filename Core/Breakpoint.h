@@ -40,7 +40,7 @@ protected:
 public:	
 	static break_info* resolve(char *ip)
 	{
-		breakpoints_defs::debugger_table::iterator it;
+		breakpoint_defs::debugger_table::iterator it;
 		boost::mutex::scoped_lock g(breakpoints_base::dt_lock);
 		it = dt.find( ip );
 		if (it == breakpoints_base::dt.end())
