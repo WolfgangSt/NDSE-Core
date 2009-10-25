@@ -788,15 +788,12 @@ DecodeReg:
 
 	
 #ifdef CLOCK_CYCLES
-	// how to do this without updating flags?!
-	// when postpending this to a flag producing op it'd invalidate the flag
-	// when prepending it to a consuming op it invalidates too
-	s << '\x43'; // inc ebx
-	flags_actual = 0;
-
-	// might use SSE at some time ... the only way i see so far for not
-	// requiring to invalidate flags
-	//s << "\x0F\xD4\xC1"; // paddq mm0,mm1
+	if (lookahead_s)
+	{
+		s << '\x43'; // inc ebx
+		flags_actual = 0;
+	} else
+		s << "\x8D\x5B\x01"; // lea ebx, [ebx+1]
 #endif
 
 	if (ctx.cond != CONDITION::AL)
